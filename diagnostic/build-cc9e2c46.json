@@ -1,0 +1,13 @@
+﻿{
+    "pr_note":  "build.py requires Python 3.12+ which is not available on this system. The .editorconfig is a configuration-only change that does not affect build output.",
+    "modules":  [
+
+                ],
+    "total_modules":  0,
+    "failed":  0,
+    "commit":  "cc9e2c46",
+    "passed":  0,
+    "generated_at":  "2026-06-17T08:36:49.0117185+05:30",
+    "diagnostic_logd_error":  "build.py requires Python 3.12+ (backslash in f-string), not available",
+    "diagnostic_logd":  null
+}
