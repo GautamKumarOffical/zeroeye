@@ -1,0 +1,20 @@
+{
+  "id": "ord_000099",
+  "client_order_id": "client_000099",
+  "symbol": "ETH/USD",
+  "side": "sell",
+  "type": "iceberg",
+  "status": "partially_filled",
+  "price": "3100.50",
+  "quantity": "10.0",
+  "filled_quantity": "3.0",
+  "remaining_quantity": "7.0",
+  "leaves_quantity": "1.0",
+  "cumulative_quote_quantity": "9301.50",
+  "avg_price": "3100.50",
+  "time_in_force": "gtc",
+  "created_at": "2026-01-15T11:00:00Z",
+  "updated_at": "2026-01-15T11:05:00Z",
+  "iceberg_quantity": "10.0",
+  "display_quantity": "1.0"
+}

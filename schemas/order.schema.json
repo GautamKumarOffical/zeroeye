@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lobster-trap/zeroeye/schemas/order.schema.json",
+  "title": "Order",
+  "description": "A trading order in the Tent of Trials market engine. Defines a request to buy or sell an instrument with specific parameters.",
+  "type": "object",
+  "required": [
+    "id",
+    "client_order_id",
+    "symbol",
+    "side",
+    "type",
+    "status",
+    "price",
+    "quantity",
+    "filled_quantity",
+    "remaining_quantity",
+    "leaves_quantity",
+    "cumulative_quote_quantity",
+    "avg_price",
+    "time_in_force",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique order identifier assigned by the exchange",
+      "pattern": "^ord_[a-zA-Z0-9]{6}$",
+      "examples": ["ord_000001"]
+    },
+    "client_order_id": {
+      "type": "string",
+      "description": "Client-specified order identifier for external tracking",
+      "examples": ["client_000001"]
+    },
+    "symbol": {
+      "type": "string",
+      "description": "Trading pair symbol",
+      "examples": ["BTC/USD", "ETH/USD", "AAPL"]
+    },
+    "side": {
+      "type": "string",
+      "enum": ["buy", "sell"],
+      "description": "Order side — buy or sell"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["limit", "market", "stop_limit", "stop_market", "trailing_stop", "iceberg"],
+      "description": "Order type"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["new", "partially_filled", "filled", "cancelled", "rejected", "expired"],
+      "description": "Current order status"
+    },
+    "price": {
+      "type": "string",
+      "description": "Order price as a decimal string (empty string for market orders)",
+      "examples": ["50000.00", ""]
+    },
+    "stop_price": {
+      "type": "string",
+      "description": "Stop price for stop orders (omitted for non-stop orders)",
+      "examples": ["49000.00"]
+    },
+    "quantity": {
+      "type": "string",
+      "description": "Ordered quantity as a decimal string",
+      "examples": ["1.5", "0.001"]
+    },
+    "filled_quantity": {
+      "type": "string",
+      "description": "Quantity that has been filled so far",
+      "examples": ["0.5", "1.5"]
+    },
+    "remaining_quantity": {
+      "type": "string",
+      "description": "Quantity remaining to be filled",
+      "examples": ["1.0", "0.0"]
+    },
+    "leaves_quantity": {
+      "type": "string",
+      "description": "Quantity still open in the order book",
+      "examples": ["1.0", "0.0"]
+    },
+    "cumulative_quote_quantity": {
+      "type": "string",
+      "description": "Cumulative quote quantity traded",
+      "examples": ["25000.00", "0.00"]
+    },
+    "avg_price": {
+      "type": "string",
+      "description": "Volume-weighted average fill price",
+      "examples": ["50000.00", "0.00"]
+    },
+    "time_in_force": {
+      "type": "string",
+      "enum": ["gtc", "ioc", "fok", "gtd"],
+      "description": "Time-in-force policy: GTC (good till cancelled), IOC (immediate or cancel), FOK (fill or kill), GTD (good till date)"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the order was created",
+      "examples": ["2026-01-15T10:30:00Z"]
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the order was last updated",
+      "examples": ["2026-01-15T10:30:05Z"]
+    },
+    "expire_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Expiration timestamp for GTD orders (null if not applicable)"
+    },
+    "iceberg_quantity": {
+      "type": "string",
+      "description": "Total iceberg quantity (omitted for non-iceberg orders)",
+      "examples": ["10.0"]
+    },
+    "display_quantity": {
+      "type": "string",
+      "description": "Visible quantity on the order book for iceberg orders",
+      "examples": ["1.0"]
+    }
+  },
+  "additionalProperties": false
+}
