@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+"""
+Pre-commit hook that runs diagnostic generation before every commit.
+
+Automates the workflow of running python3 build.py and staging the
+diagnostic artifacts, so contributors don't have to remember to do it manually.
+"""
+
+import hashlib
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+DIAGNOSTIC_DIR = ROOT / "diagnostic"
+HASH_FILE = ROOT / ".git" / ".last_build_hash"
+
+
+def get_staged_files_hash() -> str:
+    """Compute hash of all staged files to detect changes."""
+    result = subprocess.run(
+        ["git", "diff", "--cached", "--name-only"],
+        capture_output=True, text=True, cwd=str(ROOT)
+    )
+    files = sorted(result.stdout.strip().split("\n"))
+    content = "\n".join(files)
+    return hashlib.md5(content.encode()).hexdigest()
+
+
+def should_skip_build() -> bool:
+    """Check if build can be skipped (no changes since last build)."""
+    if not HASH_FILE.exists():
+        return False
+    current_hash = get_staged_files_hash()
+    last_hash = HASH_FILE.read_text().strip()
+    return current_hash == last_hash
+
+
+def save_build_hash():
+    """Save current staged files hash."""
+    current_hash = get_staged_files_hash()
+    HASH_FILE.write_text(current_hash)
+
+
+def run_build_with_countdown():
+    """Run python3 build.py with a countdown timer."""
+    print("\n  Pre-commit: Running build.py for diagnostics...")
+    print("  (This may take a while)\n")
+
+    start = time.time()
+    proc = subprocess.Popen(
+        [sys.executable, str(ROOT / "build.py")],
+        cwd=str(ROOT),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True
+    )
+
+    output_lines = []
+    for line in proc.stdout:
+        print(f"    {line.rstrip()}")
+        output_lines.append(line)
+
+    proc.wait()
+    elapsed = time.time() - start
+
+    print(f"\n  Build completed in {elapsed:.1f}s")
+    return proc.returncode == 0, "\n".join(output_lines)
+
+
+def stage_diagnostic_artifacts():
+    """Stage the most recent diagnostic artifacts."""
+    if not DIAGNOSTIC_DIR.exists():
+        return False
+
+    json_files = sorted(DIAGNOSTIC_DIR.glob("build-*.json"), reverse=True)
+    logd_files = sorted(DIAGNOSTIC_DIR.glob("build-*.logd"), reverse=True)
+
+    staged = []
+    for f in json_files[:1] + logd_files[:1]:
+        if f.exists():
+            subprocess.run(["git", "add", str(f)], cwd=str(ROOT))
+            staged.append(f.name)
+
+    if staged:
+        print(f"  Staged diagnostic artifacts: {', '.join(staged)}")
+        return True
+    return False
+
+
+def main():
+    if should_skip_build():
+        print("  Pre-commit: No changes detected, skipping build.")
+        return 0
+
+    success, output = run_build_with_countdown()
+
+    if not success:
+        print("\n  Pre-commit: Build FAILED. Commit aborted.")
+        print("  Fix the build errors and try again.")
+        return 1
+
+    staged = stage_diagnostic_artifacts()
+    if staged:
+        save_build_hash()
+        print("  Pre-commit: Diagnostic artifacts staged successfully.")
+    else:
+        print("  Pre-commit: Warning - no diagnostic artifacts found.")
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
