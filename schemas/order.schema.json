@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lobster-trap/Kickama/schemas/order.schema.json",
+  "title": "Order",
+  "description": "Represents a trading order in the Kickama exchange matching engine. Derived from the Go struct defined in market/types/types.go.",
+  "type": "object",
+  "required": [
+    "id",
+    "client_order_id",
+    "symbol",
+    "side",
+    "type",
+    "status",
+    "price",
+    "quantity",
+    "filled_quantity",
+    "remaining_quantity",
+    "leaves_quantity",
+    "cumulative_quote_quantity",
+    "avg_price",
+    "time_in_force",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique order identifier (UUID format)",
+      "examples": ["550e8400-e29b-41d4-a716-446655440000"]
+    },
+    "client_order_id": {
+      "type": "string",
+      "description": "Client-specified order identifier for tracking",
+      "examples": ["my-order-001"]
+    },
+    "symbol": {
+      "type": "string",
+      "description": "Trading pair symbol",
+      "minLength": 1,
+      "examples": ["BTC-USD", "ETH-USD"]
+    },
+    "side": {
+      "type": "integer",
+      "description": "Order side: 0 = buy, 1 = sell",
+      "enum": [0, 1]
+    },
+    "type": {
+      "type": "integer",
+      "description": "Order type: 0 = limit, 1 = market, 2 = stop_limit, 3 = stop_market, 4 = trailing_stop, 5 = iceberg",
+      "enum": [0, 1, 2, 3, 4, 5]
+    },
+    "status": {
+      "type": "integer",
+      "description": "Order status: 0 = new, 1 = partially_filled, 2 = filled, 3 = cancelled, 4 = rejected, 5 = expired",
+      "enum": [0, 1, 2, 3, 4, 5]
+    },
+    "price": {
+      "type": "string",
+      "description": "Order price as a decimal string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "examples": ["50000.00", "0.001"]
+    },
+    "stop_price": {
+      "type": "string",
+      "description": "Stop price for stop orders, as a decimal string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "examples": ["49000.00"]
+    },
+    "quantity": {
+      "type": "string",
+      "description": "Order quantity as a decimal string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "examples": ["1.5", "0.001"]
+    },
+    "filled_quantity": {
+      "type": "string",
+      "description": "Quantity that has been filled, as a decimal string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "examples": ["0.5", "1.5"]
+    },
+    "remaining_quantity": {
+      "type": "string",
+      "description": "Quantity remaining to be filled, as a decimal string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "examples": ["1.0", "0.0"]
+    },
+    "leaves_quantity": {
+      "type": "string",
+      "description": "Leaves quantity (qty still working on the book), as a decimal string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "examples": ["1.0", "0.0"]
+    },
+    "cumulative_quote_quantity": {
+      "type": "string",
+      "description": "Cumulative quote quantity traded, as a decimal string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "examples": ["25000.00", "0.00"]
+    },
+    "avg_price": {
+      "type": "string",
+      "description": "Average fill price, as a decimal string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "examples": ["50000.00", "0.00"]
+    },
+    "time_in_force": {
+      "type": "integer",
+      "description": "Time-in-force policy: 0 = GTC (good till cancelled), 1 = IOC (immediate or cancel), 2 = FOK (fill or kill), 3 = GTD (good till date)",
+      "enum": [0, 1, 2, 3]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp when the order was created"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp when the order was last updated"
+    },
+    "expire_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Optional expiry timestamp for GTD orders (RFC 3339)"
+    },
+    "iceberg_quantity": {
+      "type": "string",
+      "description": "Total iceberg order quantity, as a decimal string (only for iceberg orders)",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "examples": ["10.0"]
+    },
+    "display_quantity": {
+      "type": "string",
+      "description": "Visible display quantity on the book for iceberg orders, as a decimal string",
+      "pattern": "^-?\\d+(\\.\\d+)?$",
+      "examples": ["1.0"]
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,18 @@
+{
+  "id": "bad-order",
+  "client_order_id": "invalid-order",
+  "symbol": "",
+  "side": 5,
+  "type": 99,
+  "status": -1,
+  "price": "not-a-number",
+  "quantity": "1.5",
+  "filled_quantity": "0.0",
+  "remaining_quantity": "1.5",
+  "leaves_quantity": "1.5",
+  "cumulative_quote_quantity": "0.00",
+  "avg_price": "0.00",
+  "time_in_force": 7,
+  "created_at": "not-a-date",
+  "updated_at": "not-a-date"
+}
