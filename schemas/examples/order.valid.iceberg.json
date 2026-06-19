@@ -1,0 +1,21 @@
+{
+  "id": "ord_20260619_000002",
+  "client_order_id": "client_iceberg_001",
+  "symbol": "ETH_USDT",
+  "side": "sell",
+  "type": "iceberg",
+  "status": "new",
+  "price": "3500.50",
+  "quantity": "20.00000000",
+  "filled_quantity": "0",
+  "remaining_quantity": "20.00000000",
+  "leaves_quantity": "20.00000000",
+  "cumulative_quote_quantity": "0",
+  "avg_price": "0",
+  "time_in_force": "gtd",
+  "created_at": "2026-06-19T05:59:00Z",
+  "updated_at": "2026-06-19T05:59:00Z",
+  "expire_at": "2026-06-20T05:59:00Z",
+  "iceberg_quantity": "20.00000000",
+  "display_quantity": "2.00000000"
+}
