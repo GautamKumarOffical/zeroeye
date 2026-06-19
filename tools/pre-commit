@@ -1,0 +1,32 @@
+#!/usr/bin/env sh
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$repo_root"
+
+if git diff --cached --quiet --exit-code; then
+  echo "pre-commit: no staged changes; skipping diagnostic build"
+  exit 0
+fi
+
+python_bin="${PYTHON:-python3}"
+if ! command -v "$python_bin" >/dev/null 2>&1; then
+  if command -v python >/dev/null 2>&1; then
+    python_bin="python"
+  else
+    echo "pre-commit: python3 or python is required to run build.py" >&2
+    exit 1
+  fi
+fi
+
+echo "pre-commit: running diagnostic build with $python_bin build.py"
+if ! "$python_bin" build.py; then
+  echo "pre-commit: diagnostic build failed; aborting commit" >&2
+  exit 1
+fi
+
+if [ -d diagnostic ]; then
+  git add diagnostic/build-*.logd diagnostic/build-*.json diagnostic/build-*-metadata.json 2>/dev/null || true
+fi
+
+echo "pre-commit: diagnostic artifacts staged"
