@@ -1,0 +1,23 @@
+{
+  "generated_at": "2026-06-19T10:14:51.863351+00:00",
+  "commit": "2b54872c",
+  "diagnostic_logd": "diagnostic/build-2b54872c.logd",
+  "diagnostic_logd_error": null,
+  "chunked": false,
+  "chunk_size_bytes": null,
+  "password": "f2590cc0fa9cc02a7a9c",
+  "decrypt_command": "encryptly unpack diagnostic/build-2b54872c.logd <outdir> --password f2590cc0fa9cc02a7a9c",
+  "total_modules": 1,
+  "passed": 1,
+  "failed": 0,
+  "modules": [
+    {
+      "name": "market",
+      "status": "PASS",
+      "elapsed_seconds": 0.795,
+      "artifact": "/tmp/repos/Kickama-orderbook/market/market",
+      "output": ""
+    }
+  ],
+  "pr_note": "Include the encrypted diagnostic logd artifact(s): diagnostic/build-2b54872c.logd. The encrypted .logd is the required diagnostic content for PR review; this JSON file is metadata. Maintainers may ask you to remove these diagnostic artifacts before merging."
+}

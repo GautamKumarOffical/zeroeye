@@ -1,6 +1,8 @@
 package orderbook
 
 import (
+	"encoding/json"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -9,6 +11,21 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/tent-of-trials/market/types"
 )
+
+const (
+	DefaultSnapshotIntervalSecs = 60
+	SnapshotFileName            = "orderbook_snapshot.json"
+	SnapshotChecksumFileName    = "orderbook_snapshot.sha256"
+)
+
+type SnapshotData struct {
+	Symbol    types.Symbol    `json:"symbol"`
+	Bids      []types.Level   `json:"bids"`
+	Asks      []types.Level   `json:"asks"`
+	Orders    []*types.Order  `json:"orders"`
+	Sequence  uint64          `json:"sequence"`
+	UpdatedAt time.Time       `json:"updated_at"`
+}
 
 type Config struct {
 	MaxDepth       int
@@ -152,6 +169,80 @@ func (ob *OrderBook) Close() {
 	ob.bids = nil
 	ob.asks = nil
 	ob.orders = nil
+}
+
+func (ob *OrderBook) Snapshot() ([]byte, error) {
+	ob.mu.RLock()
+	defer ob.mu.RUnlock()
+
+	snapshot := SnapshotData{
+		Symbol:    ob.symbol,
+		Bids:      make([]types.Level, len(ob.bids)),
+		Asks:      make([]types.Level, len(ob.asks)),
+		Orders:    make([]*types.Order, 0, len(ob.orders)),
+		Sequence:  ob.sequence,
+		UpdatedAt: ob.updatedAt,
+	}
+
+	for i, l := range ob.bids {
+		if l != nil {
+			snapshot.Bids[i] = *l
+		}
+	}
+
+	for i, l := range ob.asks {
+		if l != nil {
+			snapshot.Asks[i] = *l
+		}
+	}
+
+	for _, o := range ob.orders {
+		if o != nil {
+			snapshot.Orders = append(snapshot.Orders, o)
+		}
+	}
+
+	data, err := json.MarshalIndent(snapshot, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal snapshot: %w", err)
+	}
+
+	return data, nil
+}
+
+func (ob *OrderBook) Recover(data []byte) error {
+	ob.mu.Lock()
+	defer ob.mu.Unlock()
+
+	var snapshot SnapshotData
+	if err := json.Unmarshal(data, &snapshot); err != nil {
+		return fmt.Errorf("failed to unmarshal snapshot: %w", err)
+	}
+
+	ob.symbol = snapshot.Symbol
+	ob.sequence = snapshot.Sequence
+	ob.updatedAt = snapshot.UpdatedAt
+
+	ob.bids = make([]*types.Level, 0, len(snapshot.Bids))
+	for _, l := range snapshot.Bids {
+		level := l
+		ob.bids = append(ob.bids, &level)
+	}
+
+	ob.asks = make([]*types.Level, 0, len(snapshot.Asks))
+	for _, l := range snapshot.Asks {
+		level := l
+		ob.asks = append(ob.asks, &level)
+	}
+
+	ob.orders = make(map[string]*types.Order, len(snapshot.Orders))
+	for _, o := range snapshot.Orders {
+		if o != nil {
+			ob.orders[o.ID] = o
+		}
+	}
+
+	return nil
 }
 
 var (

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/tent-of-trials/market/matching"
@@ -57,6 +60,18 @@ func main() {
 		logger.Info("order book initialized", zap.String("symbol", string(sym)))
 	}
 
+	dataDir := filepath.Join(".", "data")
+	snapshotMgr := orderbook.NewSnapshotManager(books, dataDir)
+
+	if err := snapshotMgr.LoadAll(); err != nil {
+		logger.Warn("failed to load snapshot, starting fresh", zap.Error(err))
+	} else {
+		logger.Info("order book snapshot loaded successfully")
+	}
+
+	snapshotMgr.Start()
+	defer snapshotMgr.Stop()
+
 	engine := matching.NewMatchingEngine(engineConfig, books)
 	logger.Info("matching engine initialized",
 		zap.Int("symbols", len(parsedSymbols)),
@@ -73,6 +88,34 @@ func main() {
 		}
 	}()
 
+	go func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/admin/orderbook/snapshot", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPost {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				json.NewEncoder(w).Encode(map[string]string{"error": "method not allowed"})
+				return
+			}
+
+			if err := snapshotMgr.TriggerSnapshot(); err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]string{"status": "snapshot saved"})
+		})
+
+		logger.Info("starting admin HTTP server", zap.Int("port", 8081))
+		if err := http.ListenAndServe(":8081", mux); err != nil {
+			logger.Error("admin server failed", zap.Error(err))
+		}
+	}()
+
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-sigCh
@@ -80,6 +123,10 @@ func main() {
 	logger.Info("shutting down",
 		zap.String("signal", sig.String()),
 	)
+
+	if err := snapshotMgr.TriggerSnapshot(); err != nil {
+		logger.Error("failed to save final snapshot", zap.Error(err))
+	}
 
 	server.Stop()
 	logger.Info("server stopped")
