@@ -1,0 +1,15 @@
+{
+    "app": {
+        "name": "tent-of-trials",
+        "debug": true
+    },
+    "database": {
+        "host": "localhost",
+        "port": 5432,
+        "name": "tent_dev"
+    },
+    "custom_section": {
+        "setting1": "value1",
+        "setting2": 123
+    }
+}

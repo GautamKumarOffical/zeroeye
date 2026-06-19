@@ -1,0 +1,17 @@
+{
+    "app": {
+        "name": "tent-of-trials",
+        "debug": "yes",
+        "log_level": 123
+    },
+    "server": {
+        "host": "0.0.0.0",
+        "port": "8080"
+    },
+    "database": {
+        "host": "localhost",
+        "port": 5432,
+        "pool_min": "two",
+        "pool_max": "ten"
+    }
+}
