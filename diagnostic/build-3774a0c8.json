@@ -1,0 +1,87 @@
+{
+  "generated_at": "2026-06-19T10:01:52.070572+00:00",
+  "commit": "3774a0c8",
+  "diagnostic_logd": "diagnostic/build-3774a0c8.logd",
+  "diagnostic_logd_error": null,
+  "message_blocker": null,
+  "chunked": false,
+  "chunk_size_bytes": null,
+  "password": "a1dba0b26372833d3c03",
+  "decrypt_command": "encryptly unpack diagnostic/build-3774a0c8.logd <outdir> --password a1dba0b26372833d3c03",
+  "total_modules": 10,
+  "passed": 8,
+  "failed": 2,
+  "modules": [
+    {
+      "name": "backend",
+      "status": "FAIL",
+      "elapsed_seconds": 0,
+      "artifact": null,
+      "output": "Command not found: [Errno 2] No such file or directory: 'cargo'"
+    },
+    {
+      "name": "frontend",
+      "status": "PASS",
+      "elapsed_seconds": 7.826,
+      "artifact": "/tmp/repos/Kickama-migration/frontend/dist",
+      "output": "> tent-frontend@0.0.0 build\n> tsc -b && vite build\n\nvite v6.4.3 building for production...\ntransforming...\n\u2713 100 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.62 kB \u2502 gzip:  0.34 kB\ndist/assets/state-BkjSKDbY.js     8.91 kB \u2502 gzip:  3.54 kB \u2502 map:    57.15 kB\ndist/assets/vendor-CREcWLHI.js   48.93 kB \u2502 gzip: 17.25 kB \u2502 map:   481.27 kB\ndist/assets/index-CyxcoTyU.js   231.32 kB \u2502 gzip: 72.16 kB \u2502 map: 1,044.42 kB\n\u2713 built in 2.59s"
+    },
+    {
+      "name": "market",
+      "status": "PASS",
+      "elapsed_seconds": 0.183,
+      "artifact": "/tmp/repos/Kickama-migration/market/market",
+      "output": ""
+    },
+    {
+      "name": "frailbox",
+      "status": "PASS",
+      "elapsed_seconds": 0.003,
+      "artifact": "/tmp/repos/Kickama-migration/frailbox/frailbox",
+      "output": "make: Nothing to be done for 'all'."
+    },
+    {
+      "name": "engine",
+      "status": "PASS",
+      "elapsed_seconds": 0.132,
+      "artifact": "/tmp/repos/Kickama-migration/frailbox/engine/build/trial-engine",
+      "output": "[100%] Built target trial-engine"
+    },
+    {
+      "name": "compliance",
+      "status": "PASS",
+      "elapsed_seconds": 1.454,
+      "artifact": "/tmp/repos/Kickama-migration/compliance/build",
+      "output": "Note: ComplianceAuditor.java uses or overrides a deprecated API.\nNote: Recompile with -Xlint:deprecation for details."
+    },
+    {
+      "name": "v2-market-stream",
+      "status": "PASS",
+      "elapsed_seconds": 0.017,
+      "artifact": null,
+      "output": "Syntax OK"
+    },
+    {
+      "name": "nfc-scanner",
+      "status": "PASS",
+      "elapsed_seconds": 0.002,
+      "artifact": null,
+      "output": ""
+    },
+    {
+      "name": "openapi-haskell",
+      "status": "FAIL",
+      "elapsed_seconds": 0.48,
+      "artifact": null,
+      "output": "[1 of 8] Compiling Network.HTTP.Types ( Network/HTTP/Types.hs, nothing )\n[2 of 8] Compiling Network.Wai      ( Network/Wai.hs, nothing )\n[3 of 8] Compiling Network.Wai.Handler.Warp ( Network/Wai/Handler/Warp.hs, nothing )\n[4 of 8] Compiling Network.Wai.Logger ( Network/Wai/Logger.hs, nothing )\n[5 of 8] Compiling Tent.OpenAPI.Types ( Types.hs, /tmp/ghc59321_0/ghc_4.o, /tmp/ghc59321_0/ghc_4.dyn_o )\nTypes.hs:50:1: error: [GHC-61948]\n    Could not find module \u2018Data.Aeson\u2019.\n    Perhaps you meant Data.Version (from base-4.20.2.0)\n    Use -v to see a list of the files searched for.\n   |\n50 | import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.!=), (.:?), (.=))\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nTypes.hs:51:1: error: [GHC-87110]\n    Could not find module \u2018Data.Aeson.Types\u2019.\n    Use -v to see a list of the files searched for.\n   |\n51 | import Data.Aeson.Types (Parser, parseMaybe)\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nTypes.hs:71:1: error: [GHC-61948]\n    Could not find module \u2018Data.Aeson\u2019.\n    Perhaps you meant Data.Version (from base-4.20.2.0)\n    Use -v to see a list of the files searched for.\n   |\n71 | import qualified Data.Aeson as A\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nTypes.hs:72:1: error: [GHC-87110]\n    Could not find module \u2018Data.Aeson.Key\u2019.\n    Use -v to see a list of the files searched for.\n   |\n72 | import qualified Data.Aeson.Key as K\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nTypes.hs:73:1: error: [GHC-87110]\n    Could not find module \u2018Data.Aeson.KeyMap\u2019.\n    Use -v to see a list of the files searched for.\n   |\n73 | import qualified Data.Aeson.KeyMap as KM\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nTypes.hs:74:1: error: [GHC-61948]\n    Could not find module \u2018Data.HashMap.Strict\u2019.\n    Perhaps you meant\n      Data.Map.Strict (from containers-0.7)\n      Data.IntMap.Strict (from containers-0.7)\n    Use -v to see a list of the files searched for.\n   |\n74 | import qualified Data.HashMap.Strict as HM\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nTypes.hs:77:1: error: [GHC-87110]\n    Could not find module \u2018Data.Yaml\u2019.\n    Use -v to see a list of the files searched for.\n   |\n77 | import qualified Data.Yaml as Y\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+    },
+    {
+      "name": "openapi-tools",
+      "status": "PASS",
+      "elapsed_seconds": 0.003,
+      "artifact": null,
+      "output": ""
+    }
+  ],
+  "pr_note": "Include the encrypted diagnostic logd artifact(s): diagnostic/build-3774a0c8.logd. The encrypted .logd is the required diagnostic content for PR review; this JSON file is metadata. Maintainers may ask you to remove these diagnostic artifacts before merging."
+}
