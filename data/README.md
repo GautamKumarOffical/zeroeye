@@ -2,6 +2,56 @@
 
 This directory contains data files used by the Tent of Trials platform.
 
+## Data Generator
+
+The `tools/data_generator.py` script generates realistic-looking market data for development and testing. It supports deterministic output via seed control.
+
+### Usage
+
+```bash
+# Generate with a specific seed (deterministic)
+python3 tools/data_generator.py --seed 42
+
+# Generate with a random seed and print it for reproduction
+python3 tools/data_generator.py --print-seed
+
+# Generate with specific counts
+python3 tools/data_generator.py --seed 42 --users 100 --orders 500 --trades 1000
+```
+
+### Deterministic Output
+
+When the same seed and arguments are provided, the output is byte-for-byte identical. This is useful for:
+
+- Test fixtures that need to be reproducible
+- Benchmark datasets that must be consistent
+- Debugging specific data patterns
+
+Example:
+```bash
+# These two commands produce identical output
+python3 tools/data_generator.py --seed 42 --output-dir ./run1
+python3 tools/data_generator.py --seed 42 --output-dir ./run2
+```
+
+### Seed Metadata
+
+Generated data includes a `metadata.json` file with the seed used, allowing you to reproduce any dataset:
+
+```json
+{
+  "seed": 42,
+  "generator_version": "1.0.0",
+  "generated_at": "2024-01-15T10:30:00+00:00",
+  "counts": {
+    "users": 50,
+    "orders": 200,
+    "trades": 500,
+    "instruments": 10
+  }
+}
+```
+
 ## Contents
 
 | File/Directory | Description | Format | Update Frequency |
