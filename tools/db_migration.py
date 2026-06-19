@@ -8,14 +8,22 @@ written in shell and were prone to errors. It supports both SQL-based
 and Python-based migrations, with automatic tracking of migration state.
 
 Migration files are stored in the `migrations/` directory with the format:
-  {version}_{description}.sql
-  {version}_{description}.py
+  {version}_{description}.sql          # Forward migration
+  {version}_{description}.down.sql     # Rollback migration
+  {version}_{description}.py           # Python migration
 
 Where version is a timestamp in YYYYMMDDHHMMSS format.
+
+File naming convention:
+  - Forward migrations: {version}_{description}.sql or {version}_{description}.py
+  - Rollback migrations: {version}_{description}.down.sql
+  - Example: 20210101000000_initial_schema.sql (forward)
+             20210101000000_initial_schema.down.sql (rollback)
 
 Usage:
     python3 db_migration.py --up              # Apply all pending migrations
     python3 db_migration.py --down --version 20240101000000  # Rollback specific migration
+    python3 db_migration.py --rollback        # Rollback most recent applied migration
     python3 db_migration.py --status           # Show migration status
     python3 db_migration.py --create "Add orders table"  # Create new migration
     python3 db_migration.py --seed             # Apply seed data
@@ -40,6 +48,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 MIGRATIONS_DIR = os.path.join(os.path.dirname(__file__), "..", "migrations")
 SEED_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "seed")
+STATE_FILE = os.path.join(os.path.dirname(__file__), "..", ".migration_state.json")
 DB_CONFIG = {
     "host": os.environ.get("DB_HOST", "localhost"),
     "port": os.environ.get("DB_PORT", "5432"),
@@ -49,6 +58,70 @@ DB_CONFIG = {
 }
 
 MIGRATION_TABLE = "_migrations"
+
+# ---------------------------------------------------------------------------
+# STATE FILE MANAGEMENT
+# ---------------------------------------------------------------------------
+
+def load_state() -> Dict[str, Any]:
+    """Load migration state from the state file."""
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return {"applied_migrations": []}
+    return {"applied_migrations": []}
+
+
+def save_state(state: Dict[str, Any]) -> None:
+    """Save migration state to the state file."""
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f, indent=2)
+
+
+def mark_migration_applied(version: str, description: str) -> None:
+    """Mark a migration as applied in the state file."""
+    state = load_state()
+    if version not in state["applied_migrations"]:
+        state["applied_migrations"].append(version)
+        state["applied_migrations"].sort()
+    save_state(state)
+
+
+def mark_migration_rollback(version: str) -> None:
+    """Remove a migration from the applied list in the state file."""
+    state = load_state()
+    if version in state["applied_migrations"]:
+        state["applied_migrations"].remove(version)
+    save_state(state)
+
+
+def get_applied_versions() -> List[str]:
+    """Get list of applied migration versions from state file."""
+    state = load_state()
+    return state.get("applied_migrations", [])
+
+
+def find_rollback_file(version: str) -> Optional[str]:
+    """Find the rollback file for a given migration version."""
+    if not os.path.exists(MIGRATIONS_DIR):
+        return None
+    for filename in os.listdir(MIGRATIONS_DIR):
+        if filename.startswith(version) and filename.endswith(".down.sql"):
+            return os.path.join(MIGRATIONS_DIR, filename)
+    return None
+
+
+def get_most_recent_applied() -> Optional[Dict[str, Any]]:
+    """Get the most recent applied migration."""
+    applied_versions = get_applied_versions()
+    if not applied_versions:
+        return None
+    latest_version = applied_versions[-1]
+    migration = next((m for m in MIGRATIONS if m["version"] == latest_version), None)
+    return migration
+
 
 # ---------------------------------------------------------------------------
 # MIGRATION TRACKING
@@ -166,13 +239,33 @@ def execute_sql(sql: str, db_config: Dict[str, str]) -> bool:
         return False
 
 
-def apply_migration(version: str, direction: str = "up") -> bool:
+def apply_migration(version: str, direction: str = "up", dry_run: bool = False, force: bool = False) -> bool:
     migration = next((m for m in MIGRATIONS if m["version"] == version), None)
     if not migration:
         print(f"Migration {version} not found")
         return False
 
     print(f"Applying migration {version}: {migration['description']} ({direction})")
+
+    if direction == "down":
+        applied_versions = get_applied_versions()
+        if version not in applied_versions:
+            print(f"  ✗ Migration {version} is not applied")
+            return False
+
+        rollback_file = find_rollback_file(version)
+        if not rollback_file:
+            if not force:
+                print(f"  ✗ No rollback file found for migration {version}")
+                print(f"    Expected: {version}_{migration['description'].replace(' ', '_')}.down.sql")
+                print(f"    Use --force to rollback without a rollback file")
+                return False
+            else:
+                print(f"  ⚠ Rolling back without rollback file (--force)")
+
+    if dry_run:
+        print(f"  [DRY RUN] Would apply migration {version} ({direction})")
+        return True
 
     sql_up = f"-- Migration {version}: {migration['description']}\n"
     sql_up += f"INSERT INTO {MIGRATION_TABLE} (version, description, applied_at) "
@@ -183,6 +276,7 @@ def apply_migration(version: str, direction: str = "up") -> bool:
     if direction == "up":
         success = execute_sql(sql_up, DB_CONFIG)
         if success:
+            mark_migration_applied(version, migration['description'])
             print(f"  ✓ Migration {version} applied")
         else:
             print(f"  ✗ Migration {version} FAILED")
@@ -190,20 +284,33 @@ def apply_migration(version: str, direction: str = "up") -> bool:
     else:
         success = execute_sql(sql_down, DB_CONFIG)
         if success:
+            mark_migration_rollback(version)
             print(f"  ✓ Migration {version} rolled back")
         else:
             print(f"  ✗ Migration {version} rollback FAILED")
         return success
 
 
+def rollback_migration(dry_run: bool = False, force: bool = False) -> bool:
+    """Rollback the most recent applied migration."""
+    migration = get_most_recent_applied()
+    if not migration:
+        print("No applied migrations to rollback")
+        return False
+
+    print(f"Rolling back migration {migration['version']}: {migration['description']}")
+    return apply_migration(migration['version'], "down", dry_run, force)
+
+
 def get_migration_status() -> List[Dict[str, Any]]:
+    applied_versions = get_applied_versions()
     status = []
     for m in MIGRATIONS:
         status.append({
             "version": m["version"],
             "description": m["description"],
             "type": m.get("type", "sql"),
-            "applied": False,
+            "applied": m["version"] in applied_versions,
         })
     return status
 
@@ -233,6 +340,23 @@ def run_all_migrations(dry_run: bool = False) -> bool:
     return all_successful
 
 
+def list_rollbackable() -> List[Dict[str, Any]]:
+    """List migrations that can be rolled back."""
+    applied_versions = get_applied_versions()
+    rollbackable = []
+    for version in reversed(applied_versions):
+        migration = next((m for m in MIGRATIONS if m["version"] == version), None)
+        if migration:
+            rollback_file = find_rollback_file(version)
+            rollbackable.append({
+                "version": version,
+                "description": migration["description"],
+                "has_rollback_file": rollback_file is not None,
+                "rollback_file": rollback_file,
+            })
+    return rollbackable
+
+
 def create_migration(description: str) -> str:
     version = datetime.now().strftime("%Y%m%d%H%M%S")
     safe_desc = re.sub(r'[^a-z0-9_]', '_', description.lower().replace(' ', '_'))
@@ -257,11 +381,14 @@ def create_migration(description: str) -> str:
 def main():
     parser = argparse.ArgumentParser(description="Database migration tool")
     parser.add_argument("--up", action="store_true", help="Apply all pending migrations")
-    parser.add_argument("--down", action="store_true", help="Rollback a migration")
+    parser.add_argument("--down", action="store_true", help="Rollback a specific migration")
+    parser.add_argument("--rollback", action="store_true", help="Rollback the most recent applied migration")
     parser.add_argument("--version", help="Migration version (required for --down)")
     parser.add_argument("--status", action="store_true", help="Show migration status")
+    parser.add_argument("--list-rollbackable", action="store_true", help="List migrations that can be rolled back")
     parser.add_argument("--create", help="Create a new migration file")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would be done")
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be done without executing")
+    parser.add_argument("--force", action="store_true", help="Force rollback without rollback file")
     parser.add_argument("--seed", action="store_true", help="Apply seed data")
     parser.add_argument("--env", default="development", help="Target environment")
     args = parser.parse_args()
@@ -276,15 +403,32 @@ def main():
             print(f"{m['version']:<20} {m['description']:<40} {status_str:<10}")
         return 0
 
+    if args.list_rollbackable:
+        rollbackable = list_rollbackable()
+        if not rollbackable:
+            print("No migrations available for rollback")
+            return 0
+        print(f"\nRollbackable migrations:")
+        print(f"{'Version':<20} {'Description':<40} {'Rollback File':<15}")
+        print("-" * 75)
+        for m in rollbackable:
+            has_file = "✓ Yes" if m["has_rollback_file"] else "✗ No"
+            print(f"{m['version']:<20} {m['description']:<40} {has_file:<15}")
+        return 0
+
     if args.up:
         success = run_all_migrations(args.dry_run)
         return 0 if success else 1
 
     if args.down:
         if not args.version:
-            print("--version is required for rollback")
+            print("--version is required for --down")
             return 1
-        success = apply_migration(args.version, "down")
+        success = apply_migration(args.version, "down", args.dry_run, args.force)
+        return 0 if success else 1
+
+    if args.rollback:
+        success = rollback_migration(args.dry_run, args.force)
         return 0 if success else 1
 
     if args.create:
