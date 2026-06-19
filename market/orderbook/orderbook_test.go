@@ -151,6 +151,16 @@ func TestCancelBidPreservesOtherLevels(t *testing.T) {
 	if len(bids) != 2 {
 		t.Fatalf("expected 2 bid levels after cancel, got %d", len(bids))
 	}
+	// Verify the correct price levels remain (100.0 and 98.0, not 99.0)
+	if bids[0].Price.Equal(decimal.NewFromFloat(99.0)) {
+		t.Fatalf("wrong level preserved: price 99.0 should have been cancelled")
+	}
+	if !bids[0].Price.Equal(decimal.NewFromFloat(100.0)) {
+		t.Fatalf("expected top bid at 100.0, got %v", bids[0].Price)
+	}
+	if !bids[1].Price.Equal(decimal.NewFromFloat(98.0)) {
+		t.Fatalf("expected second bid at 98.0, got %v", bids[1].Price)
+	}
 }
 
 func TestAddMultipleOrdersAndCancelOne(t *testing.T) {
@@ -177,5 +187,12 @@ func TestAddMultipleOrdersAndCancelOne(t *testing.T) {
 	}
 	if len(asks) != 1 {
 		t.Fatalf("expected 1 ask level, got %d", len(asks))
+	}
+	// Verify remaining bid has correct price and count
+	if !bids[0].Price.Equal(decimal.NewFromFloat(100.0)) {
+		t.Fatalf("expected remaining bid at 100.0, got %v", bids[0].Price)
+	}
+	if bids[0].Count != 1 {
+		t.Fatalf("expected 1 order at 100.0 after cancel, got %d", bids[0].Count)
 	}
 }
