@@ -7,6 +7,7 @@ import (
 	"github.com/tent-of-trials/market/types"
 )
 
+// newTestOrder creates a test order with the given side and price for use in orderbook tests.
 func newTestOrder(side types.OrderSide, price float64) *types.Order {
 	p := decimal.NewFromFloat(price)
 	qty := decimal.NewFromFloat(1.0)
@@ -19,6 +20,7 @@ func newTestOrder(side types.OrderSide, price float64) *types.Order {
 	}
 }
 
+// TestCancelBidRemovesLevelAndDeletesOrder verifies that cancelling a bid removes the level and order ID from the book.
 func TestCancelBidRemovesLevelAndDeletesOrder(t *testing.T) {
 	ob := NewOrderBook("BTC/USD", Config{MaxDepth: 10, PriceDecimals: 2, VolumeDecimals: 8})
 
@@ -48,6 +50,7 @@ func TestCancelBidRemovesLevelAndDeletesOrder(t *testing.T) {
 	}
 }
 
+// TestCancelAskRemovesLevel verifies that cancelling an ask removes the matching ask level from the book.
 func TestCancelAskRemovesLevel(t *testing.T) {
 	ob := NewOrderBook("ETH/USD", Config{MaxDepth: 10, PriceDecimals: 2, VolumeDecimals: 8})
 
@@ -71,6 +74,7 @@ func TestCancelAskRemovesLevel(t *testing.T) {
 	}
 }
 
+// TestCancelUnknownOrderReturnsErrOrderNotFound verifies that cancelling a non-existent order returns the appropriate error.
 func TestCancelUnknownOrderReturnsErrOrderNotFound(t *testing.T) {
 	ob := NewOrderBook("BTC/USD", Config{MaxDepth: 10, PriceDecimals: 2, VolumeDecimals: 8})
 
@@ -80,6 +84,7 @@ func TestCancelUnknownOrderReturnsErrOrderNotFound(t *testing.T) {
 	}
 }
 
+// TestClosedBookRejectsAddAndCancel verifies that a closed order book rejects both add and cancel operations.
 func TestClosedBookRejectsAddAndCancel(t *testing.T) {
 	ob := NewOrderBook("BTC/USD", Config{MaxDepth: 10, PriceDecimals: 2, VolumeDecimals: 8})
 
@@ -102,6 +107,7 @@ func TestClosedBookRejectsAddAndCancel(t *testing.T) {
 	}
 }
 
+// TestSnapshotReturnsCopies verifies that snapshots return copies so callers cannot mutate internal bid/ask slices.
 func TestSnapshotReturnsCopies(t *testing.T) {
 	ob := NewOrderBook("BTC/USD", Config{MaxDepth: 10, PriceDecimals: 2, VolumeDecimals: 8})
 
@@ -130,6 +136,7 @@ func TestSnapshotReturnsCopies(t *testing.T) {
 	}
 }
 
+// TestCancelBidPreservesOtherLevels verifies that cancelling one bid preserves other bid levels.
 func TestCancelBidPreservesOtherLevels(t *testing.T) {
 	ob := NewOrderBook("BTC/USD", Config{MaxDepth: 10, PriceDecimals: 2, VolumeDecimals: 8})
 
@@ -163,6 +170,7 @@ func TestCancelBidPreservesOtherLevels(t *testing.T) {
 	}
 }
 
+// TestAddMultipleOrdersAndCancelOne verifies that adding multiple orders then cancelling one behaves correctly.
 func TestAddMultipleOrdersAndCancelOne(t *testing.T) {
 	ob := NewOrderBook("BTC/USD", Config{MaxDepth: 10, PriceDecimals: 2, VolumeDecimals: 8})
 
