@@ -1,0 +1,8 @@
+{"timestamp":"2024-01-15T10:00:01Z","level":"info","service":"backend","message":"Server started on port 8080"}
+{"timestamp":"2024-01-15T10:00:02Z","level":"info","service":"backend","message":"Connected to database"}
+{"timestamp":"2024-01-15T10:00:03Z","level":"warn","service":"market","message":"High latency detected: 250ms"}
+{"timestamp":"2024-01-15T10:00:04Z","level":"error","service":"backend","message":"Failed to process order: insufficient funds"}
+{"timestamp":"2024-01-15T10:00:05Z","level":"info","service":"frontend","message":"User login successful"}
+{"timestamp":"2024-01-15T10:00:06Z","level":"debug","service":"market","message":"Tick received for BTC/USD"}
+{"timestamp":"2024-01-15T10:00:07Z","level":"error","service":"market","message":"Connection timeout to upstream service"}
+{"timestamp":"2024-01-15T10:00:08Z","level":"info","service":"backend","message":"Order placed successfully"}

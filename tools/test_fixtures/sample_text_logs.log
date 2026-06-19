@@ -1,0 +1,10 @@
+2024-01-15 10:00:01 [backend] INFO Server started on port 8080
+2024-01-15 10:00:02 [backend] INFO Connected to database
+2024-01-15 10:00:03 [market] WARN High latency detected: 250ms
+2024-01-15 10:00:04 [backend] ERROR Failed to process order: insufficient funds
+2024-01-15 10:00:05 [frontend] INFO User login successful
+2024-01-15 10:00:06 [market] DEBUG Tick received for BTC/USD
+2024-01-15 10:00:07 [market] ERROR Connection timeout to upstream service
+2024-01-15 10:00:08 [backend] INFO Order placed successfully
+2024-01-15 10:00:09 THIS LINE CANNOT BE PARSED
+2024-01-15 10:00:10 [backend] INFO Another normal log line

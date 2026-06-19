@@ -70,6 +70,38 @@ Pre-built Grafana dashboards are available:
 | Business Metrics | Active users, trades, volume | `tot-business-metrics` |
 | Service Health | Per-service health and dependencies | `tot-service-health` |
 
+### Log Aggregation JSONL Output
+
+The log aggregator supports JSONL (JSON Lines) output for machine-readable log processing.
+
+**Usage:**
+```bash
+python3 tools/log_aggregator.py --input /var/log/app/*.log --format jsonl --output logs.jsonl
+```
+
+**JSONL Schema:**
+
+Each line is a JSON object with the following fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `timestamp` | string/null | ISO 8601 timestamp (e.g., "2024-01-15T10:00:01+00:00") or null if unavailable |
+| `level` | string | Log level: `error`, `warn`, `info`, `debug`, `unknown` |
+| `source` | string | Service name or `unknown` if not detected |
+| `message` | string | Log message text |
+| `metadata` | object | Additional fields from the original log entry |
+
+**Example JSONL record:**
+```json
+{"timestamp": "2024-01-15T10:00:01+00:00", "level": "info", "source": "backend", "message": "Server started", "metadata": {"port": 8080}}
+```
+
+**Ordering:**
+Records are sorted by parsed timestamp when timestamps are available. Lines without parseable timestamps appear at the beginning.
+
+**Unparseable lines:**
+Lines that cannot be parsed by any supported format (JSON, text, nginx) are included as warning records with `metadata.parse_error: true`.
+
 ### Alerting Rules
 
 Alerts are sent to PagerDuty and Slack (#ops-alerts channel).

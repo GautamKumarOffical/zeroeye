@@ -121,8 +121,17 @@ class JSONLogParser(LogParser):
             entry = json.loads(line.strip())
             if not isinstance(entry, dict):
                 return None
+
+            ts_raw = entry.get('timestamp') or entry.get('time') or entry.get('@timestamp')
+            ts = None
+            if ts_raw is not None:
+                if isinstance(ts_raw, (int, float)):
+                    ts = int(ts_raw)
+                elif isinstance(ts_raw, str):
+                    ts = self._parse_iso_timestamp(ts_raw)
+
             return {
-                'timestamp': entry.get('timestamp') or entry.get('time') or entry.get('@timestamp'),
+                'timestamp': ts,
                 'level': entry.get('level') or entry.get('severity') or entry.get('lvl', 'info'),
                 'service': entry.get('service') or entry.get('logger') or entry.get('app'),
                 'message': entry.get('message') or entry.get('msg') or entry.get('event', ''),
@@ -131,6 +140,23 @@ class JSONLogParser(LogParser):
             }
         except json.JSONDecodeError:
             return None
+
+    def _parse_iso_timestamp(self, ts_str: str) -> Optional[int]:
+        for fmt in [
+            '%Y-%m-%dT%H:%M:%S%z',
+            '%Y-%m-%dT%H:%M:%SZ',
+            '%Y-%m-%dT%H:%M:%S',
+            '%Y-%m-%d %H:%M:%S%z',
+            '%Y-%m-%d %H:%M:%S',
+        ]:
+            try:
+                dt = datetime.strptime(ts_str, fmt)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return int(dt.timestamp())
+            except ValueError:
+                continue
+        return None
 
 
 class TextLogParser(LogParser):
@@ -260,6 +286,20 @@ class LogAggregator:
                     self.errors_by_service[service].append(msg)
                     self.error_patterns[msg] += 1
                 return True
+
+        stripped = line.strip()
+        if stripped:
+            warning_entry = {
+                'timestamp': None,
+                'level': 'warn',
+                'service': 'log_aggregator',
+                'message': f'Unparseable log line: {stripped[:200]}',
+                'fields': {'raw': stripped[:500], 'parse_error': True},
+                'format': 'warning',
+            }
+            self.entries.append(warning_entry)
+            self.level_counts['warn'] += 1
+            self.service_counts['log_aggregator'] += 1
         return False
 
     def get_summary(self) -> Dict[str, Any]:
@@ -359,6 +399,41 @@ class LogAggregator:
             }, f, indent=2, default=str)
         logger.info(f"Report exported to {output_path}")
 
+    def export_jsonl(self, output_path: str):
+        """Export log entries as JSONL (JSON Lines) format.
+
+        Each line is a JSON object with:
+        - timestamp: ISO 8601 timestamp or null
+        - level: log level (error, warn, info, debug, unknown)
+        - source: service name or 'unknown'
+        - message: log message text
+        - metadata: additional fields from the original log entry
+        """
+        with open(output_path, 'w') as f:
+            for entry in self.entries:
+                metadata = entry.get('fields', {})
+                if entry.get('format') == 'json' and 'fields' in metadata:
+                    metadata = metadata.get('fields', metadata)
+
+                ts = entry.get('timestamp')
+                if ts is not None:
+                    try:
+                        ts_iso = datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+                    except (OSError, ValueError):
+                        ts_iso = None
+                else:
+                    ts_iso = None
+
+                record = {
+                    'timestamp': ts_iso,
+                    'level': entry.get('level', 'unknown'),
+                    'source': entry.get('service') or entry.get('source') or 'unknown',
+                    'message': entry.get('message', ''),
+                    'metadata': metadata,
+                }
+                f.write(json.dumps(record, default=str) + '\n')
+        logger.info(f"JSONL report exported to {output_path}")
+
     def generate_html_report(self, output_path: str):
         summary = self.get_summary()
         html = f"""<!DOCTYPE html>
@@ -409,7 +484,8 @@ def parse_args():
     parser.add_argument("--input", "-i", help="Input log file or glob pattern")
     parser.add_argument("--dir", help="Directory containing log files")
     parser.add_argument("--output", "-o", default="log_report.json", help="Output file path")
-    parser.add_argument("--format", choices=["json", "csv", "html"], default="json", help="Output format")
+    parser.add_argument("--format", choices=["json", "csv", "html", "jsonl", "text"],
+                        default="json", help="Output format")
     parser.add_argument("--search", help="Search for a string in logs")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
     return parser.parse_args()
@@ -456,6 +532,9 @@ def main():
         aggregator.export_csv(args.output)
     elif args.format == "html":
         aggregator.generate_html_report(args.output)
+    elif args.format == "jsonl":
+        aggregator.entries.sort(key=lambda e: e.get('timestamp') or 0)
+        aggregator.export_jsonl(args.output)
     else:
         aggregator.export_json(args.output)
 
