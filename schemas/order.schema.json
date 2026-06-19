@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zeroeye.example/schemas/order.schema.json",
+  "title": "Order",
+  "description": "JSON Schema for market order records used by the matching engine and order history surfaces.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Server-side order identifier."
+    },
+    "client_order_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Client-supplied idempotency or correlation identifier."
+    },
+    "symbol": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Market symbol, for example BTC-USD."
+    },
+    "side": {
+      "type": "string",
+      "enum": ["buy", "sell"],
+      "description": "Order direction."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "limit",
+        "market",
+        "stop_limit",
+        "stop_market",
+        "trailing_stop",
+        "iceberg"
+      ],
+      "description": "Order execution type supported by the market engine."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "partially_filled",
+        "filled",
+        "cancelled",
+        "rejected",
+        "expired"
+      ],
+      "description": "Current order lifecycle status."
+    },
+    "price": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Limit or reference price for the order."
+    },
+    "quantity": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Original order quantity."
+    },
+    "filled_quantity": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Quantity already filled."
+    },
+    "remaining_quantity": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Quantity remaining after fills."
+    },
+    "leaves_quantity": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Quantity still live on the book."
+    },
+    "cumulative_quote_quantity": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Cumulative quote currency notional filled."
+    },
+    "avg_price": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Average execution price across fills."
+    },
+    "time_in_force": {
+      "type": "string",
+      "enum": ["gtc", "ioc", "fok", "gtd"],
+      "description": "Time-in-force policy."
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Order creation timestamp."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last order update timestamp."
+    },
+    "stop_price": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Optional trigger price for stop orders."
+    },
+    "expire_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Optional expiry timestamp for GTD orders."
+    },
+    "iceberg_quantity": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Optional total iceberg reserve quantity."
+    },
+    "display_quantity": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Optional visible slice for iceberg orders."
+    }
+  },
+  "required": [
+    "id",
+    "client_order_id",
+    "symbol",
+    "side",
+    "type",
+    "status",
+    "price",
+    "quantity",
+    "filled_quantity",
+    "remaining_quantity",
+    "leaves_quantity",
+    "cumulative_quote_quantity",
+    "avg_price",
+    "time_in_force",
+    "created_at",
+    "updated_at"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": { "const": "iceberg" }
+        },
+        "required": ["type"]
+      },
+      "then": {
+        "required": ["iceberg_quantity", "display_quantity"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "time_in_force": { "const": "gtd" }
+        },
+        "required": ["time_in_force"]
+      },
+      "then": {
+        "required": ["expire_at"]
+      }
+    }
+  ]
+}

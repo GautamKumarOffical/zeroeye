@@ -1,0 +1,17 @@
+{
+  "id": "ord_invalid_001",
+  "client_order_id": "client_invalid_001",
+  "symbol": "BTC-USD",
+  "side": "hold",
+  "type": "limit",
+  "status": "new",
+  "price": -1,
+  "quantity": 0,
+  "filled_quantity": 0,
+  "remaining_quantity": 0,
+  "leaves_quantity": 0,
+  "cumulative_quote_quantity": 0,
+  "avg_price": 0,
+  "created_at": "not-a-date",
+  "updated_at": "2026-06-19T06:45:00Z"
+}
