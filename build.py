@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+__version__ = "1.0.0"
+
 import argparse
 import datetime
 import getpass
@@ -162,6 +164,19 @@ MODULES = [
         build_dir=None,
     ),
 ]
+
+MODULE_DESCRIPTIONS = {
+    "backend": "Rust backend API server and core business logic",
+    "frontend": "TypeScript/React frontend web application",
+    "market": "Go market engine and order matching system",
+    "frailbox": "C low-level firmware and hardware interface layer",
+    "engine": "C++ trial simulation engine (uses CMake)",
+    "compliance": "Java compliance auditing and regulatory module",
+    "v2-market-stream": "Ruby market data streaming service (v2)",
+    "nfc-scanner": "Lua NFC scanner integration module",
+    "openapi-haskell": "Haskell OpenAPI type definitions and server stubs",
+    "openapi-tools": "Lua OpenAPI diff, mock, and pact testing tools",
+}
 
 ENCRYPTLY_DIR = ROOT / "tools" / "encryptly"
 ENCRYPTLY_BINARIES = {
@@ -663,25 +678,30 @@ def print_summary(results: list[tuple[str, bool, float, str, Optional[str]]]):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Tent of Trials  -  Multi-Language Build System",
+        description="Tent of Trials - Multi-Language Build System",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python3 build.py                    Build all modules
-  python3 build.py -m backend         Build only backend
-  python3 build.py -m frontend,market Build frontend and market
-  python3 build.py --clean            Clean all artifacts
-  python3 build.py --release          Release build (Rust only)
-  python3 build.py --verbose          Verbose output
-
-Diagnostic bundle:
-  python3 build.py
+  python3 build.py                          Build all modules
+  python3 build.py -t backend               Build only backend
+  python3 build.py -t backend,frontend      Build backend and frontend
+  python3 build.py -t market --skip-diagnostics  Fast iteration (no diagnostics)
+  python3 build.py --clean                  Clean all artifacts
+  python3 build.py --release                Release build (Rust backend)
+  python3 build.py -vvv                     Very verbose output
+  python3 build.py -o /tmp/my-builds        Custom output directory
+  python3 build.py --list-targets           Show all build targets with descriptions
         """,
     )
     parser.add_argument(
-        "-m", "--module",
-        help="Module(s) to build (comma-separated, or 'all')",
+        "-t", "--target",
+        help="Module(s) to build (comma-separated, e.g. backend,frontend,market)",
         default="all",
+    )
+    parser.add_argument(
+        "-m", "--module",
+        help=argparse.SUPPRESS,
+        default=None,
     )
     parser.add_argument(
         "--clean", action="store_true",
@@ -692,57 +712,88 @@ Diagnostic bundle:
         help="Build in release mode (Rust backend)",
     )
     parser.add_argument(
-        "--verbose", "-v", action="store_true",
-        help="Show detailed build output",
+        "-v", "--verbose", action="count", default=0,
+        help="Increase log verbosity (can be specified multiple times: -vvv)",
+    )
+    parser.add_argument(
+        "--skip-diagnostics", action="store_true",
+        help="Skip diagnostic generation for faster iteration",
+    )
+    parser.add_argument(
+        "-o", "--output-dir",
+        help="Custom output directory for build artifacts",
+        type=Path,
+    )
+    parser.add_argument(
+        "--version", action="version",
+        version=f"%(prog)s {__version__}",
     )
     parser.add_argument(
         "--list", action="store_true",
-        help="List available modules and exit",
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--list-targets", action="store_true",
+        help="List all discoverable build targets with descriptions and exit",
     )
 
     args = parser.parse_args()
+
+    if args.module is not None:
+        args.target = args.module
+
+    verbose = args.verbose >= 1
 
     print(f"\n  {color('Tent of Trials: building', Colors.CYAN)}")
     print(f"  Working directory: {ROOT}")
     print()
 
-    if args.list:
-        print(f"  {color('Available modules:', Colors.BOLD)}")
+    if args.list or args.list_targets:
+        print(f"  {color('Available build targets:', Colors.BOLD)}")
+        print()
         for m in MODULES:
+            desc = MODULE_DESCRIPTIONS.get(m.name, "")
             print(f"    {color(m.name, Colors.CYAN)} ({m.language})")
-            print(f"      dir: {m.dir.relative_to(ROOT)}")
+            print(f"      {color(desc, Colors.GRAY)}")
+            print(f"      dir:   {m.dir.relative_to(ROOT)}")
             print(f"      build: {' '.join(m.build_cmd)}")
+            print()
         return 0
 
     print(f"  {color('Checking prerequisites...', Colors.GRAY)}")
     missing = check_prerequisites()
     if missing:
-        print(f"\n  {color('⚠ Some tools missing  -  will try anyway:', Colors.YELLOW)}")
+        print(f"\n  {color('⚠ Some tools missing - will try anyway:', Colors.YELLOW)}")
         for m in missing:
             print(f"    {m}")
-        print(f"  {color('Not all modules will build. That\'s fine.', Colors.GRAY)}")
+        print(f"  {color('Not all modules will build. Thats fine.', Colors.GRAY)}")
     else:
         print(f"  {color('✓ All prerequisites found', Colors.GREEN)}")
 
-    if args.module == "all":
+    if args.target == "all":
         selected = MODULES
     else:
-        names = [n.strip() for n in args.module.split(",")]
+        names = [n.strip() for n in args.target.split(",")]
         selected = [m for m in MODULES if m.name in names]
         not_found = set(names) - {m.name for m in MODULES}
         if not_found:
-            print(f"  {color('✗ Unknown modules:', Colors.RED)} {', '.join(not_found)}")
-            print(f"    Available: {', '.join(m.name for m in MODULES)}")
+            valid = ", ".join(m.name for m in MODULES)
+            print(f"  {color('✗ Unknown targets:', Colors.RED)} {', '.join(not_found)}")
+            print(f"    Valid targets: {valid}")
             return 1
 
     if not selected:
         print(f"  No modules selected.")
         return 0
 
+    if args.output_dir:
+        args.output_dir.mkdir(parents=True, exist_ok=True)
+        print(f"  {color('Output directory:', Colors.GRAY)} {args.output_dir}")
+
     if args.clean:
         print(f"\n  {color('Cleaning build artifacts...', Colors.YELLOW)}")
         for module in selected:
-            clean_module(module, args.verbose)
+            clean_module(module, verbose)
 
         diagnostic_artifacts = [ROOT / "build.logd"]
         if DIAGNOSTIC_DIR.exists():
@@ -765,13 +816,16 @@ Diagnostic bundle:
     results: list[tuple[str, bool, float, str, Optional[str]]] = []
 
     for module in selected:
-        success, elapsed, output = build_module(module, args.release, args.verbose)
+        success, elapsed, output = build_module(module, args.release, verbose)
         binary = verify_binary(module) if success else None
         results.append((module.name, success, elapsed, output, binary))
 
     print_summary(results)
 
-    generate_logd(results, args.verbose)
+    if not args.skip_diagnostics:
+        generate_logd(results, verbose)
+    else:
+        print(f"\n  {color('Diagnostics skipped (--skip-diagnostics)', Colors.YELLOW)}")
 
     return 0 if all(r[1] for r in results) else 1
 
