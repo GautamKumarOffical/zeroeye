@@ -787,6 +787,83 @@ class AiCodeReviewer:
 # ---------------------------------------------------------------------------
 
 
+SEVERITY_TO_SARIF_LEVEL = {
+    ReviewSeverity.CRITICAL: "error",
+    ReviewSeverity.ERROR: "error",
+    ReviewSeverity.WARNING: "warning",
+    ReviewSeverity.INFO: "note",
+    ReviewSeverity.SUGGESTION: "note",
+}
+
+
+def generate_sarif(report: ProjectReviewReport) -> dict:
+    """Generate SARIF 2.1.0 output from a project review report."""
+    rules_map: Dict[str, dict] = {}
+    results = []
+
+    for file_result in report.file_results:
+        for finding in file_result.findings:
+            rule_id = finding.rules[0] if finding.rules else finding.id.split("-")[0]
+
+            if rule_id not in rules_map:
+                rules_map[rule_id] = {
+                    "id": rule_id,
+                    "shortDescription": {"text": finding.message},
+                    "defaultConfiguration": {
+                        "level": SEVERITY_TO_SARIF_LEVEL.get(finding.severity, "warning")
+                    },
+                    "properties": {
+                        "category": finding.category.value,
+                        "effort": finding.effort_minutes,
+                    },
+                }
+
+            result_entry = {
+                "ruleId": rule_id,
+                "level": SEVERITY_TO_SARIF_LEVEL.get(finding.severity, "warning"),
+                "message": {"text": finding.message},
+                "locations": [
+                    {
+                        "physicalLocation": {
+                            "artifactLocation": {"uri": finding.file_path},
+                            "region": {
+                                "startLine": finding.line_number,
+                                "startColumn": finding.column,
+                            },
+                        }
+                    }
+                ],
+                "fingerprints": {"primaryLocationLineHash": finding.id},
+            }
+
+            if finding.suggestion:
+                result_entry["fixes"] = [
+                    {
+                        "description": {"text": finding.suggestion},
+                    }
+                ]
+
+            results.append(result_entry)
+
+    sarif = {
+        "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "ai_reviewer",
+                        "version": "1.0.0",
+                        "rules": list(rules_map.values()),
+                    }
+                },
+                "results": results,
+            }
+        ],
+    }
+    return sarif
+
+
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="AI-Powered Code Reviewer",
@@ -794,7 +871,13 @@ def create_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--path", type=str, required=True, help="File or directory to review")
     parser.add_argument("--recursive", action="store_true", help="Review directories recursively")
-    parser.add_argument("--output", type=str, default=None, help="Output JSON report path")
+    parser.add_argument("--output", type=str, default=None, help="Output report path")
+    parser.add_argument(
+        "--format",
+        choices=["text", "json", "sarif"],
+        default="text",
+        help="Output format (default: text)",
+    )
     return parser
 
 
@@ -807,50 +890,95 @@ def main() -> int:
 
     if path.is_file():
         result = reviewer.review_file(path)
-        print(f"\n{'='*60}")
-        print(f"AI Code Review: {path}")
-        print(f"{'='*60}")
-        print(result.summary)
-        print(f"\nQuality Metrics:")
-        print(f"  Maintainability Index: {result.quality.maintainability_index}/100 ({result.quality.overall_rating})")
-        print(f"  Technical Debt Ratio: {result.quality.technical_debt_ratio}%")
-        print(f"  Documentation Ratio: {result.quality.documentation_ratio:.1f}%")
-        print(f"  Style Compliance: {result.quality.style_compliance:.1f}%")
-        print(f"\nComplexity:")
-        print(f"  Cyclomatic: {result.complexity.cyclomatic_complexity}")
-        print(f"  Cognitive: {result.complexity.cognitive_complexity}")
-        print(f"  Nesting Depth: {result.complexity.nesting_depth}")
-        print(f"  Methods: {result.complexity.number_of_methods}")
-        print(f"\nFindings ({len(result.findings)} total):")
-        for f in result.findings:
-            severity_icon = {
-                ReviewSeverity.CRITICAL: "🔴",
-                ReviewSeverity.ERROR: "🟠",
-                ReviewSeverity.WARNING: "🟡",
-                ReviewSeverity.INFO: "🔵",
-                ReviewSeverity.SUGGESTION: "💡",
-            }.get(f.severity, "⚪")
-            print(f"  {severity_icon} [{f.severity.value.upper()}] L{f.line_number}: {f.message}")
-            if f.suggestion:
-                print(f"     💡 {f.suggestion}")
-        print()
+
+        if args.format == "sarif":
+            # Wrap single file result as a project report
+            report = ProjectReviewReport(
+                timestamp=datetime.now().isoformat(),
+                project_path=str(path),
+                total_files=1,
+                reviewed_files=1,
+                total_findings=len(result.findings),
+                critical_findings=len([f for f in result.findings if f.severity == ReviewSeverity.CRITICAL]),
+                errors=len([f for f in result.findings if f.severity == ReviewSeverity.ERROR]),
+                warnings=len([f for f in result.findings if f.severity == ReviewSeverity.WARNING]),
+                info_findings=len([f for f in result.findings if f.severity == ReviewSeverity.INFO]),
+                suggestions=len([f for f in result.findings if f.severity == ReviewSeverity.SUGGESTION]),
+                file_results=[result],
+            )
+            sarif = generate_sarif(report)
+            output = json.dumps(sarif, indent=2)
+            if args.output:
+                Path(args.output).write_text(output)
+                print(f"SARIF written to {args.output}", file=sys.stderr)
+            else:
+                print(output)
+        elif args.format == "json":
+            report = ProjectReviewReport(
+                timestamp=datetime.now().isoformat(),
+                project_path=str(path),
+                total_files=1,
+                reviewed_files=1,
+                total_findings=len(result.findings),
+                critical_findings=0,
+                errors=0,
+                warnings=0,
+                info_findings=0,
+                suggestions=0,
+                file_results=[result],
+            )
+            reviewer.generate_report_json(report, Path(args.output) if args.output else None)
+            if not args.output:
+                print(reviewer.generate_report_json(report))
+        else:
+            print(f"\n{'='*60}")
+            print(f"AI Code Review: {path}")
+            print(f"{'='*60}")
+            print(result.summary)
+            print(f"\nFindings ({len(result.findings)} total):")
+            for f in result.findings:
+                severity_icon = {
+                    ReviewSeverity.CRITICAL: "🔴",
+                    ReviewSeverity.ERROR: "🟠",
+                    ReviewSeverity.WARNING: "🟡",
+                    ReviewSeverity.INFO: "🔵",
+                    ReviewSeverity.SUGGESTION: "💡",
+                }.get(f.severity, "⚪")
+                print(f"  {severity_icon} [{f.severity.value.upper()}] L{f.line_number}: {f.message}")
+                if f.suggestion:
+                    print(f"     💡 {f.suggestion}")
+            print()
 
     elif path.is_dir():
         report = reviewer.review_directory(path, args.recursive)
-        print(f"\n{'='*60}")
-        print(f"AI Project Review: {path}")
-        print(f"{'='*60}")
-        print(report.summary)
-        print(f"\nFindings by Severity:")
-        print(f"  🔴 Critical: {report.critical_findings}")
-        print(f"  🟠 Errors: {report.errors}")
-        print(f"  🟡 Warnings: {report.warnings}")
-        print(f"  🔵 Info: {report.info_findings}")
-        print(f"  💡 Suggestions: {report.suggestions}")
-        print()
 
-        if args.output:
-            reviewer.generate_report_json(report, Path(args.output))
+        if args.format == "sarif":
+            sarif = generate_sarif(report)
+            output = json.dumps(sarif, indent=2)
+            if args.output:
+                Path(args.output).write_text(output)
+                print(f"SARIF written to {args.output}", file=sys.stderr)
+            else:
+                print(output)
+        elif args.format == "json":
+            reviewer.generate_report_json(report, Path(args.output) if args.output else None)
+            if not args.output:
+                print(reviewer.generate_report_json(report))
+        else:
+            print(f"\n{'='*60}")
+            print(f"AI Project Review: {path}")
+            print(f"{'='*60}")
+            print(report.summary)
+            print(f"\nFindings by Severity:")
+            print(f"  🔴 Critical: {report.critical_findings}")
+            print(f"  🟠 Errors: {report.errors}")
+            print(f"  🟡 Warnings: {report.warnings}")
+            print(f"  🔵 Info: {report.info_findings}")
+            print(f"  💡 Suggestions: {report.suggestions}")
+            print()
+
+            if args.output:
+                reviewer.generate_report_json(report, Path(args.output))
 
     else:
         logger.error(f"Path not found: {path}")

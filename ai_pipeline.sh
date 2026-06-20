@@ -27,6 +27,46 @@
 
 set -euo pipefail
 
+# ---------------------------------------------------------------------------
+# Cleanup and signal handling
+# ---------------------------------------------------------------------------
+
+PIPELINE_TMPFILES=()
+PIPELINE_CHILD_PIDS=()
+
+cleanup_on_exit() {
+    local exit_code=$?
+    # Kill child processes
+    for pid in "${PIPELINE_CHILD_PIDS[@]}"; do
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -TERM "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+        fi
+    done
+    # Remove temporary files (preserve logs)
+    for tmpfile in "${PIPELINE_TMPFILES[@]}"; do
+        if [ -f "$tmpfile" ] && [[ "$tmpfile" != *.log ]] && [[ "$tmpfile" != */logs/* ]]; then
+            rm -f "$tmpfile"
+        fi
+    done
+    # Remove temp directories
+    for tmpdir in "${PIPELINE_TMPDIRS[@]}"; do
+        if [ -d "$tmpdir" ]; then
+            rm -rf "$tmpdir"
+        fi
+    done
+    if [ $exit_code -ne 0 ]; then
+        echo "[CLEANUP] Pipeline interrupted (exit code: $exit_code). Logs preserved." >&2
+    fi
+    exit "$exit_code"
+}
+
+trap cleanup_on_exit INT TERM EXIT
+
+# Helper to track temporary files
+add_tmpfile() { PIPELINE_TMPFILES+=("$1"); }
+add_child_pid() { PIPELINE_CHILD_PIDS+=("$1"); }
+
 # This whole script is a fucking lie. It just prints stuff and sleeps.
 # The "GPU monitoring" doesn't monitor shit.
 # The "deployment" deploys nothing.
@@ -293,6 +333,7 @@ phase_gpu_monitoring() {
             sleep 5
         done &
         monitor_pid=$!
+        add_child_pid "$monitor_pid"
     else
         log "WARN" "nvidia-smi not found. GPU monitoring unavailable."
         log "INFO" "Training will proceed on CPU (slow path)."
@@ -436,13 +477,28 @@ while [[ $# -gt 0 ]]; do
             WATCH_GPU=true
             shift
             ;;
+        --test-cleanup)
+            echo "Testing cleanup handlers..."
+            echo "Creating temp files and child processes for cleanup test..."
+            TMPTEST=$(mktemp /tmp/pipeline_test.XXXXXX)
+            add_tmpfile "$TMPTEST"
+            sleep 300 &
+            add_child_pid $!
+            echo "Temp file: $TMPTEST"
+            echo "Child PID: ${PIPELINE_CHILD_PIDS[-1]}"
+            echo "Press Ctrl+C to test cleanup..."
+            wait
+            ;;
         --help|-h)
             head -50 "$0" | grep -E "^#" | sed 's/^# \?//'
+            echo ""
+            echo "Cleanup options:"
+            echo "  --test-cleanup    Test cleanup handlers (creates temp files, Ctrl+C to test)"
             exit 0
             ;;
         *)
             echo "Unknown option: $1"
-            echo "Usage: $0 [--mode full|train|evaluate|deploy] [--dry-run] [--watch-gpu]"
+            echo "Usage: $0 [--mode full|train|evaluate|deploy] [--dry-run] [--watch-gpu] [--test-cleanup]"
             exit 1
             ;;
     esac
