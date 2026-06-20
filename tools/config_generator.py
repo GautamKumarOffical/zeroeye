@@ -166,10 +166,12 @@ ENV_OVERRIDES: Dict[str, Dict[str, Any]] = {
     },
 }
 
-SENSITIVE_KEYS = [
-    "database.password", "redis.password", "auth.jwt_secret",
-    "auth.jwt_secret", "auth.jwt_secret",
-]
+SENSITIVE_KEY_PATTERNS = ["TOKEN", "SECRET", "KEY", "PASSWORD", "CREDENTIAL"]
+
+
+def _is_sensitive_key(key: str) -> bool:
+    upper = key.upper()
+    return any(pat in upper for pat in SENSITIVE_KEY_PATTERNS)
 
 
 def merge_config(base: Dict, override: Dict) -> Dict:
@@ -191,17 +193,23 @@ def generate_config(env: str, overrides: Optional[Dict] = None) -> Dict:
     return config
 
 
-def mask_sensitive(config: Dict, prefix: str = "") -> Dict:
-    masked = {}
-    for key, value in config.items():
-        full_key = f"{prefix}.{key}" if prefix else key
-        if full_key in SENSITIVE_KEYS:
-            masked[key] = "***REDACTED***"
-        elif isinstance(value, dict):
-            masked[key] = mask_sensitive(value, full_key)
-        else:
-            masked[key] = value
-    return masked
+def mask_sensitive(config: Any, prefix: str = "") -> Any:
+    if isinstance(config, dict):
+        masked = {}
+        for key, value in config.items():
+            full_key = f"{prefix}.{key}" if prefix else key
+            if _is_sensitive_key(key):
+                masked[key] = "***REDACTED***"
+            elif isinstance(value, dict):
+                masked[key] = mask_sensitive(value, full_key)
+            elif isinstance(value, list):
+                masked[key] = [mask_sensitive(item, full_key) for item in value]
+            else:
+                masked[key] = value
+        return masked
+    elif isinstance(config, list):
+        return [mask_sensitive(item, prefix) for item in config]
+    return config
 
 
 def to_yaml(config: Dict) -> str:
@@ -295,6 +303,8 @@ def flatten_for_k8s(config: Dict, prefix: str = "") -> List[tuple]:
         full_key = f"{prefix}.{key}" if prefix else key
         if isinstance(value, dict):
             result.extend(flatten_for_k8s(value, full_key))
+        elif isinstance(value, list):
+            result.append((full_key, ",".join(str(v) for v in value)))
         else:
             result.append((full_key, value))
     return result
