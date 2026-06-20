@@ -1,0 +1,24 @@
+{
+  "generated_at": "2026-06-20T06:53:32.560230+00:00",
+  "commit": "3774a0c8",
+  "diagnostic_logd": "diagnostic/build-3774a0c8.logd",
+  "diagnostic_logd_error": null,
+  "message_blocker": null,
+  "chunked": false,
+  "chunk_size_bytes": null,
+  "password": "35110c86f9e37aca7b7d",
+  "decrypt_command": "encryptly unpack diagnostic/build-3774a0c8.logd <outdir> --password 35110c86f9e37aca7b7d",
+  "total_modules": 1,
+  "passed": 0,
+  "failed": 1,
+  "modules": [
+    {
+      "name": "encryptly-preflight",
+      "status": "FAIL",
+      "elapsed_seconds": 5.406,
+      "artifact": null,
+      "output": "encryptly could not create an archive. You may have timed out; try launching it in the background and waiting for it to finish with no timeout due to a bug in encryptly. encryptly preflight completed without creating a .logd"
+    }
+  ],
+  "pr_note": "Include the encrypted diagnostic logd artifact(s): diagnostic/build-3774a0c8.logd. The encrypted .logd is the required diagnostic content for PR review; this JSON file is metadata. Maintainers may ask you to remove these diagnostic artifacts before merging."
+}
