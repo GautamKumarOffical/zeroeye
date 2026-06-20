@@ -78,11 +78,11 @@ RECOMMENDED_ALERT_RULES: List[Dict[str, Any]] = [
     },
     {
         "name": "HighMemoryUsage",
-        "expr": "process_resident_memory_bytes / process_resident_memory_bytes > 0.9",
+        "expr": "process_resident_memory_bytes / machine_memory_bytes > 0.9",
         "duration": "10m",
         "severity": "warning",
         "summary": "High memory usage on {{$labels.instance}}",
-        "description": "Memory usage is above 90% for 10 minutes",
+        "description": "Memory usage is above 90% of available memory for 10 minutes",
     },
     {
         "name": "LowDiskSpace",
@@ -141,6 +141,15 @@ RECOMMENDED_ALERT_RULES: List[Dict[str, Any]] = [
         "description": "Rate limit exceeded {{$value}} times per second",
     },
 ]
+
+def validate_alert_expr(expr: str, name: str) -> bool:
+    import re
+    division_matches = re.findall(r'(\w+)\s*/\s*\1', expr)
+    if division_matches:
+        print(f"WARNING: Alert '{name}' has self-dividing expression: {expr}", file=sys.stderr)
+        return False
+    return True
+
 
 RECOMMENDED_RECORDING_RULES: List[Dict[str, Any]] = [
     {"name": "job:http_requests_total:rate5m", "expr": "sum(rate(http_requests_total[5m])) by (job)"},
@@ -205,6 +214,9 @@ def upload_prometheus_rules(rules: List[Dict[str, Any]],
 
     yaml_content = ["groups:", "  - name: tent_alerts", "    interval: 30s", "    rules:"]
     for rule in rules:
+        if not validate_alert_expr(rule["expr"], rule["name"]):
+            print(f"Skipping invalid rule: {rule['name']}", file=sys.stderr)
+            continue
         yaml_content.append(f"      - alert: {rule['name']}")
         yaml_content.append(f"        expr: {rule['expr']}")
         yaml_content.append(f"        for: {rule.get('duration', '5m')}")
