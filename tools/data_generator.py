@@ -18,6 +18,7 @@ following the power-law distributions seen in real markets.
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import os
@@ -76,6 +77,96 @@ DOMAINS = ["example.com", "test.org", "demo.net", "sample.io", "mock.dev",
            "fictitious.co", "imaginary.app", "pretend.tech", "dummy.biz",
            "simulated.com", "testmail.com", "inbox.test"]
 
+def sha256_file(filepath: str) -> str:
+    h = hashlib.sha256()
+    with open(filepath, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def build_manifest(
+    output_dir: str,
+    seed: int,
+    cli_args: List[str],
+    file_records: Dict[str, int],
+) -> Dict[str, Any]:
+    files = {}
+    for rel_path, count in sorted(file_records.items()):
+        abs_path = os.path.join(output_dir, rel_path)
+        files[rel_path] = {
+            "record_count": count,
+            "sha256": sha256_file(abs_path),
+            "size_bytes": os.path.getsize(abs_path),
+        }
+    deterministic_ts = hashlib.sha256(f"seed:{seed}".encode()).hexdigest()[:24]
+    return {
+        "schema_version": 1,
+        "generator": os.path.basename(__file__),
+        "created_at_seed": deterministic_ts,
+        "cli_args": cli_args,
+        "seed": seed,
+        "output_dir": os.path.abspath(output_dir),
+        "files": files,
+    }
+
+
+def write_manifest(manifest_path: str, manifest: Dict[str, Any]) -> None:
+    with open(manifest_path, "w") as f:
+        json.dump(manifest, f, indent=2, sort_keys=True, default=str)
+    print(f"Manifest written to {manifest_path}")
+
+
+def verify_manifest(manifest_path: str) -> bool:
+    with open(manifest_path, "r") as f:
+        manifest = json.load(f)
+
+    errors: List[str] = []
+    output_dir = manifest.get("output_dir", ".")
+
+    for rel_path, expected in manifest.get("files", {}).items():
+        abs_path = os.path.join(output_dir, rel_path)
+        if not os.path.exists(abs_path):
+            errors.append(f"Missing file: {rel_path}")
+            continue
+        actual_sha = sha256_file(abs_path)
+        if actual_sha != expected["sha256"]:
+            errors.append(
+                f"Checksum mismatch for {rel_path}: "
+                f"expected {expected['sha256']}, got {actual_sha}"
+            )
+        actual_count = expected.get("record_count")
+        if actual_count is not None:
+            try:
+                if rel_path.endswith(".json"):
+                    with open(abs_path, "r") as fh:
+                        data = json.load(fh)
+                    if isinstance(data, list):
+                        file_count = len(data)
+                    elif isinstance(data, dict):
+                        file_count = sum(
+                            len(v) if isinstance(v, list) else 1
+                            for v in data.values()
+                        )
+                    else:
+                        file_count = 0
+                    if file_count != actual_count:
+                        errors.append(
+                            f"Record count mismatch for {rel_path}: "
+                            f"expected {actual_count}, got {file_count}"
+                        )
+            except Exception:
+                pass
+
+    if errors:
+        print(f"Manifest verification FAILED ({len(errors)} error(s)):")
+        for e in errors:
+            print(f"  - {e}")
+        return False
+    print("Manifest verification passed")
+    return True
+
+
 def gaussian_random(mean: float, stddev: float) -> float:
     return random.gauss(mean, stddev)
 
@@ -85,30 +176,11 @@ def clamp(value: float, min_val: float, max_val: float) -> float:
 def round_to_tick(value: float, tick_size: float) -> float:
     return round(value / tick_size) * tick_size
 
-def random_phone() -> str:
-    return f"+1-{random.randint(200, 999)}-{random.randint(100, 999)}-{random.randint(1000, 9999)}"
-
-def random_email(first: str, last: str) -> str:
-    domain = random.choice(DOMAINS)
-    pattern = random.choice([
-        f"{first.lower()}.{last.lower()}",
-        f"{first.lower()}{last.lower()}",
-        f"{first[0].lower()}{last.lower()}",
-        f"{last.lower()}.{first.lower()}",
-        f"{first.lower()}{random.randint(1, 999)}",
-    ])
-    return f"{pattern}@{domain}"
-
-def random_datetime(start_year: int = 2023, end_year: int = 2024) -> datetime:
-    start = datetime(start_year, 1, 1, tzinfo=timezone.utc)
-    end = datetime(end_year, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-    delta = end - start
-    return start + timedelta(seconds=random.randint(0, int(delta.total_seconds())))
-
 
 class DataGenerator:
     def __init__(self, seed: int = 42):
         self.random = random.Random(seed)
+        self._base_ts = int(hashlib.sha256(f"ts:{seed}".encode()).hexdigest()[:8], 16) * 1000
         self.instruments = INSTRUMENTS
         self.users: List[Dict[str, Any]] = []
         self.orders: List[Dict[str, Any]] = []
@@ -118,6 +190,26 @@ class DataGenerator:
         self.order_counter = 0
         self.trade_counter = 0
 
+    def random_phone(self) -> str:
+        return f"+1-{self.random.randint(200, 999)}-{self.random.randint(100, 999)}-{self.random.randint(1000, 9999)}"
+
+    def random_email(self, first: str, last: str) -> str:
+        domain = self.random.choice(DOMAINS)
+        pattern = self.random.choice([
+            f"{first.lower()}.{last.lower()}",
+            f"{first.lower()}{last.lower()}",
+            f"{first[0].lower()}{last.lower()}",
+            f"{last.lower()}.{first.lower()}",
+            f"{first.lower()}{self.random.randint(1, 999)}",
+        ])
+        return f"{pattern}@{domain}"
+
+    def random_datetime(self, start_year: int = 2023, end_year: int = 2024) -> datetime:
+        start = datetime(start_year, 1, 1, tzinfo=timezone.utc)
+        end = datetime(end_year, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+        delta = end - start
+        return start + timedelta(seconds=self.random.randint(0, int(delta.total_seconds())))
+
     def generate_users(self, count: int = 50) -> List[Dict[str, Any]]:
         self.users = []
         for _ in range(count):
@@ -126,16 +218,16 @@ class DataGenerator:
             last = self.random.choice(LAST_NAMES)
             user = {
                 "id": f"user_{self.user_counter:04d}",
-                "email": random_email(first, last),
+                "email": self.random_email(first, last),
                 "name": f"{first} {last}",
                 "role": self.random.choice(["trader", "trader", "trader", "admin",
                                             "analyst", "viewer"]),
                 "status": self.random.choice(["active", "active", "active", "active", "inactive"]),
                 "mfa_enabled": self.random.random() < 0.3,
                 "email_verified": self.random.random() < 0.95,
-                "created_at": random_datetime().isoformat(),
-                "last_login": random_datetime(2024, 2024).isoformat(),
-                "phone": random_phone(),
+                "created_at": self.random_datetime().isoformat(),
+                "last_login": self.random_datetime(2024, 2024).isoformat(),
+                "phone": self.random_phone(),
                 "preferences": {
                     "theme": self.random.choice(["dark", "light"]),
                     "language": "en",
@@ -180,8 +272,8 @@ class DataGenerator:
                 "status": self.random.choice(ORDER_STATUSES),
                 "filled_quantity": 0,
                 "avg_fill_price": None,
-                "created_at": random_datetime().isoformat(),
-                "updated_at": random_datetime(2024, 2024).isoformat(),
+                "created_at": self.random_datetime().isoformat(),
+                "updated_at": self.random_datetime(2024, 2024).isoformat(),
             }
             self.orders.append(order)
 
@@ -210,7 +302,7 @@ class DataGenerator:
                 "quantity": quantity,
                 "total": round(price * quantity, 2),
                 "side": side,
-                "timestamp": random_datetime(2024, 2024).isoformat(),
+                "timestamp": self.random_datetime(2024, 2024).isoformat(),
                 "buyer": self.random.choice(self.users)["id"],
                 "seller": self.random.choice(self.users)["id"],
                 "buyer_fee": round(price * quantity * 0.001, 2),
@@ -239,7 +331,7 @@ class DataGenerator:
                 "ask": round_to_tick(price + instrument["tick_size"] * self.random.randint(1, 5),
                                     instrument["tick_size"]),
                 "volume": round(self.random.expovariate(1.0 / instrument["vol"]), 4),
-                "timestamp": int(time.time() * 1000) - (count - i) * 1000,
+                "timestamp": self._base_ts - (count - i) * 1000,
             }
             ticks.append(tick)
 
@@ -251,7 +343,7 @@ class DataGenerator:
         instrument = next(i for i in self.instruments if i["symbol"] == instrument_symbol)
         candles = []
         price = instrument["price"]
-        now = int(time.time() * 1000)
+        now = self._base_ts
         interval_ms = interval_minutes * 60 * 1000
 
         for i in range(count):
@@ -303,11 +395,18 @@ def parse_args():
     parser.add_argument("--json", action="store_true", help="Export as JSON")
     parser.add_argument("--csv", action="store_true", help="Export as CSV")
     parser.add_argument("--format", choices=["json", "csv", "both"], default="json", help="Output format")
+    parser.add_argument("--manifest", metavar="PATH", help="Write a JSON manifest with checksums to PATH")
+    parser.add_argument("--verify-manifest", metavar="PATH", help="Verify output files against an existing manifest")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+
+    if args.verify_manifest:
+        ok = verify_manifest(args.verify_manifest)
+        sys.exit(0 if ok else 1)
+
     gen = DataGenerator(args.seed)
 
     os.makedirs(args.output_dir, exist_ok=True)
@@ -345,21 +444,39 @@ def main():
     if output_format == "both":
         output_format = "json"  # Default for combined
 
+    file_records: Dict[str, int] = {}
+
     # Export
     if output_format in ("json", "both"):
         gen.export_json(os.path.join(args.output_dir, "users.json"), users)
+        file_records["users.json"] = len(users)
         gen.export_json(os.path.join(args.output_dir, "orders.json"), orders)
+        file_records["orders.json"] = len(orders)
         gen.export_json(os.path.join(args.output_dir, "trades.json"), trades)
+        file_records["trades.json"] = len(trades)
         gen.export_json(os.path.join(args.output_dir, "ticks.json"), all_ticks)
+        tick_count = sum(len(v) for v in all_ticks.values())
+        file_records["ticks.json"] = tick_count
         gen.export_json(os.path.join(args.output_dir, "candles.json"), all_candles)
+        candle_count = sum(len(v) for v in all_candles.values())
+        file_records["candles.json"] = candle_count
         gen.export_json(os.path.join(args.output_dir, "instruments.json"), gen.instruments)
+        file_records["instruments.json"] = len(gen.instruments)
 
     if output_format in ("csv", "both"):
         gen.export_csv(os.path.join(args.output_dir, "users.csv"), users)
+        file_records["users.csv"] = len(users)
         gen.export_csv(os.path.join(args.output_dir, "orders.csv"), orders)
+        file_records["orders.csv"] = len(orders)
         gen.export_csv(os.path.join(args.output_dir, "trades.csv"), trades)
+        file_records["trades.csv"] = len(trades)
 
     print(f"\nAll data generated in {args.output_dir}/")
+
+    if args.manifest:
+        cli_args = [os.path.basename(__file__)] + sys.argv[1:]
+        manifest = build_manifest(args.output_dir, args.seed, cli_args, file_records)
+        write_manifest(args.manifest, manifest)
 
 
 if __name__ == "__main__":
