@@ -22,6 +22,7 @@ Usage:
     python3 deploy.py --env production --service all --tag v3.2.0
     python3 deploy.py --env development --service frontend --skip-build
     python3 deploy.py --env production --rollback --version v3.1.0
+    python3 deploy.py --env staging --service backend --dry-run
 """
 
 import argparse
@@ -404,7 +405,19 @@ def main():
             return 1
 
         if args.dry_run:
-            print(f"Would rollback {args.service} in {args.env} to {args.version}")
+            config = SERVICES[args.service]
+            env_config = ENVIRONMENTS[args.env]
+            image = f"registry.example.com/tent/{args.service}:{args.version}"
+            replicas = config["replicas"].get(args.env, 1)
+
+            print(f"[DRY RUN] Would rollback {args.service} in {args.env} to {args.version}")
+            print(f"[DRY RUN]   Docker push:  docker push {image}")
+            print(f"[DRY RUN]   K8s apply:    kubectl apply -f deploy/k8s/{args.service}.yaml -n {env_config['namespace']} --context {env_config['kube_context']}")
+            print(f"[DRY RUN]   K8s set img:  kubectl set image deployment/{config['name']} {args.service}={image} -n {env_config['namespace']} --context {env_config['kube_context']}")
+            print(f"[DRY RUN]   K8s scale:    kubectl scale deployment/{config['name']} --replicas={replicas} -n {env_config['namespace']} --context {env_config['kube_context']}")
+            print(f"[DRY RUN]   K8s rollout:  kubectl rollout status deployment/{config['name']} -n {env_config['namespace']} --context {env_config['kube_context']} --timeout=300s")
+            url = f"http://{env_config['host']}:{config['port']}{config['health_endpoint']}"
+            print(f"[DRY RUN]   Health check: curl -s -o /dev/null -w %{{http_code}} {url}")
             return 0
 
         success = rollback_service(args.service, args.env, args.version)
@@ -413,10 +426,44 @@ def main():
     services = list(SERVICES.keys()) if args.service == "all" else [args.service]
 
     if args.dry_run:
-        print(f"Would deploy to {args.env}:")
-        for s in services:
-            print(f"  {s}: tag={args.tag}, build={not args.skip_build}, "
-                  f"test={not args.skip_test}")
+        print(f"[DRY RUN] Would deploy to {args.env}:")
+        print(f"[DRY RUN] Tag: {args.tag}")
+        print(f"[DRY RUN] Services: {', '.join(services)}")
+        print()
+
+        for service in services:
+            config = SERVICES[service]
+            env_config = ENVIRONMENTS[args.env]
+            replicas = config["replicas"].get(args.env, 1)
+            image = f"registry.example.com/tent/{service}:{args.tag}"
+
+            print(f"[DRY RUN] === {service} ===")
+
+            if not args.skip_build:
+                print(f"[DRY RUN]   Build: {config['build_command']}")
+            else:
+                print(f"[DRY RUN]   Build: SKIPPED")
+
+            if not args.skip_test:
+                print(f"[DRY RUN]   Test:  {config['test_command']}")
+            else:
+                print(f"[DRY RUN]   Test:  SKIPPED")
+
+            print(f"[DRY RUN]   Docker build: docker build -t tent/{service}:{args.tag} -f {config['dockerfile']} .")
+            print(f"[DRY RUN]   Docker push:  docker push {image}")
+            print(f"[DRY RUN]   K8s apply:    kubectl apply -f deploy/k8s/{service}.yaml -n {env_config['namespace']} --context {env_config['kube_context']}")
+            print(f"[DRY RUN]   K8s set img:  kubectl set image deployment/{config['name']} {service}={image} -n {env_config['namespace']} --context {env_config['kube_context']}")
+            print(f"[DRY RUN]   K8s scale:    kubectl scale deployment/{config['name']} --replicas={replicas} -n {env_config['namespace']} --context {env_config['kube_context']}")
+            print(f"[DRY RUN]   K8s rollout:  kubectl rollout status deployment/{config['name']} -n {env_config['namespace']} --context {env_config['kube_context']} --timeout=300s")
+
+            if not args.skip_health:
+                url = f"http://{env_config['host']}:{config['port']}{config['health_endpoint']}"
+                print(f"[DRY RUN]   Health check: curl -s -o /dev/null -w %{{http_code}} {url}")
+            else:
+                print(f"[DRY RUN]   Health check: SKIPPED")
+
+            print()
+
         return 0
 
     all_successful = True
