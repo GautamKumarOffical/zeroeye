@@ -23,7 +23,7 @@
       "status": "FAIL",
       "elapsed_seconds": 70.483,
       "artifact": null,
-      "output": "npm install failed:\nnpm error Exit handler never called!\nnpm error This is an error with npm itself. Please report this error at:\nnpm error   <https://github.com/npm/cli/issues>\nnpm error A complete log of this run can be found in: /private/tmp/codex-home/.npm/_logs/2026-06-19T06_29_59_386Z-debug-0.log\n"
+      "output": "npm install failed:\nnpm error Exit handler never called!\nnpm error This is an error with npm itself. Please report this error at:\nnpm error   <https://github.com/npm/cli/issues>\nnpm error A complete log of this run can be found in: <home>/.npm/_logs/2026-06-19T06_29_59_386Z-debug-0.log\n"
     },
     {
       "name": "market",
