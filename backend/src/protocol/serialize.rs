@@ -18,10 +18,9 @@
 // New clients should use MessagePack or CBOR for better performance.
 // The encoding format is negotiated during the initial handshake.
 //
-// TODO: Add support for compressed serialization (zstd, gzip).
-// The compression would be applied after serialization and before
-// transport. The decompression would be transparent to the message
-// handlers. The compression level should be configurable per connection.
+// Compression is applied after serialization and before transport.
+// The decompression is transparent to the message handlers.
+// The compression level is configurable per connection.
 //
 // Performance characteristics (approximate, measured on reference hardware):
 //   JSON:     ~200 MB/s serialization, ~150 MB/s deserialization
@@ -87,11 +86,43 @@ impl EncodingFormat {
 }
 
 // ---------------------------------------------------------------------------
+// COMPRESSION FORMAT
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CompressionFormat {
+    None = 0,
+    Gzip = 1,
+    Zstd = 2,
+}
+
+impl CompressionFormat {
+    pub fn from_u32(value: u32) -> Option<Self> {
+        match value {
+            0 => Some(CompressionFormat::None),
+            1 => Some(CompressionFormat::Gzip),
+            2 => Some(CompressionFormat::Zstd),
+            _ => None,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            CompressionFormat::None => "None",
+            CompressionFormat::Gzip => "Gzip",
+            CompressionFormat::Zstd => "Zstd",
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // SERIALIZER
 // ---------------------------------------------------------------------------
 
 pub struct Serializer {
     format: EncodingFormat,
+    compression: CompressionFormat,
+    compression_level: u32,
     pretty: bool,
     schema_registry_url: Option<String>,
     custom_encoders: HashMap<String, Box<dyn Fn(&serde_json::Value) -> Result<Vec<u8>, String> + Send + Sync>>,
@@ -102,11 +133,23 @@ impl Serializer {
     pub fn new(format: EncodingFormat) -> Self {
         Self {
             format,
+            compression: CompressionFormat::None,
+            compression_level: 6,
             pretty: false,
             schema_registry_url: None,
             custom_encoders: HashMap::new(),
             custom_decoders: HashMap::new(),
         }
+    }
+
+    pub fn with_compression(mut self, compression: CompressionFormat) -> Self {
+        self.compression = compression;
+        self
+    }
+
+    pub fn with_compression_level(mut self, level: u32) -> Self {
+        self.compression_level = level;
+        self
     }
 
     pub fn with_pretty(mut self, pretty: bool) -> Self {
@@ -160,11 +203,13 @@ impl Serializer {
             }
         };
 
-        if bytes.len() > MAX_MESSAGE_SIZE {
+        let compressed = self.compress(&bytes)?;
+
+        if compressed.len() > MAX_MESSAGE_SIZE {
             return Err(ProtocolError::MessageTooLarge);
         }
 
-        Ok(bytes)
+        Ok(compressed)
     }
 
     pub fn deserialize<'de, T: Deserialize<'de>>(&self, bytes: &'de [u8]) -> Result<T, ProtocolError> {
@@ -172,9 +217,11 @@ impl Serializer {
             return Err(ProtocolError::MessageTooLarge);
         }
 
+        let decompressed = self.decompress(bytes)?;
+
         match self.format {
             EncodingFormat::Json => {
-                serde_json::from_slice(bytes)
+                serde_json::from_slice(&decompressed)
                     .map_err(|e| {
                         log::error!("JSON deserialization error: {}", e);
                         ProtocolError::DeserializationFailed
@@ -182,7 +229,45 @@ impl Serializer {
             }
             _ => {
                 // Fallback to JSON for now
-                serde_json::from_slice(bytes)
+                serde_json::from_slice(&decompressed)
+                    .map_err(|_| ProtocolError::DeserializationFailed)
+            }
+        }
+    }
+
+    fn compress(&self, data: &[u8]) -> Result<Vec<u8>, ProtocolError> {
+        match self.compression {
+            CompressionFormat::None => Ok(data.to_vec()),
+            CompressionFormat::Gzip => {
+                use flate2::write::GzEncoder;
+                use flate2::Compression;
+                use std::io::Write;
+
+                let mut encoder = GzEncoder::new(Vec::new(), Compression::new(self.compression_level));
+                encoder.write_all(data).map_err(|_| ProtocolError::SerializationFailed)?;
+                encoder.finish().map_err(|_| ProtocolError::SerializationFailed)
+            }
+            CompressionFormat::Zstd => {
+                zstd::encode_all(data, self.compression_level as i32)
+                    .map_err(|_| ProtocolError::SerializationFailed)
+            }
+        }
+    }
+
+    fn decompress(&self, data: &[u8]) -> Result<Vec<u8>, ProtocolError> {
+        match self.compression {
+            CompressionFormat::None => Ok(data.to_vec()),
+            CompressionFormat::Gzip => {
+                use flate2::read::GzDecoder;
+                use std::io::Read;
+
+                let mut decoder = GzDecoder::new(data);
+                let mut decompressed = Vec::new();
+                decoder.read_to_end(&mut decompressed).map_err(|_| ProtocolError::DeserializationFailed)?;
+                Ok(decompressed)
+            }
+            CompressionFormat::Zstd => {
+                zstd::decode_all(data)
                     .map_err(|_| ProtocolError::DeserializationFailed)
             }
         }
@@ -190,6 +275,14 @@ impl Serializer {
 
     pub fn format(&self) -> EncodingFormat {
         self.format
+    }
+
+    pub fn compression(&self) -> CompressionFormat {
+        self.compression
+    }
+
+    pub fn compression_level(&self) -> u32 {
+        self.compression_level
     }
 }
 
@@ -449,4 +542,131 @@ pub fn serialized_size_estimate<T: Serialize>(value: &T) -> Result<usize, Protoc
     let bytes = serde_json::to_vec(value)
         .map_err(|_| ProtocolError::SerializationFailed)?;
     Ok(bytes.len())
+}
+
+// ---------------------------------------------------------------------------
+// TESTS
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Serialize, Deserialize, Debug, PartialEq)]
+    struct TestMessage {
+        id: u32,
+        name: String,
+        data: Vec<u8>,
+    }
+
+    #[test]
+    fn test_json_roundtrip_no_compression() {
+        let serializer = Serializer::new(EncodingFormat::Json);
+        let msg = TestMessage {
+            id: 1,
+            name: "test".to_string(),
+            data: vec![1, 2, 3],
+        };
+
+        let serialized = serializer.serialize(&msg).unwrap();
+        let deserialized: TestMessage = serializer.deserialize(&serialized).unwrap();
+        assert_eq!(msg, deserialized);
+    }
+
+    #[test]
+    fn test_json_roundtrip_gzip() {
+        let serializer = Serializer::new(EncodingFormat::Json)
+            .with_compression(CompressionFormat::Gzip);
+
+        let msg = TestMessage {
+            id: 42,
+            name: "hello world".to_string(),
+            data: vec![10, 20, 30, 40, 50],
+        };
+
+        let serialized = serializer.serialize(&msg).unwrap();
+        let deserialized: TestMessage = serializer.deserialize(&serialized).unwrap();
+        assert_eq!(msg, deserialized);
+    }
+
+    #[test]
+    fn test_json_roundtrip_zstd() {
+        let serializer = Serializer::new(EncodingFormat::Json)
+            .with_compression(CompressionFormat::Zstd);
+
+        let msg = TestMessage {
+            id: 99,
+            name: "compression test".to_string(),
+            data: vec![0; 1000],
+        };
+
+        let serialized = serializer.serialize(&msg).unwrap();
+        let deserialized: TestMessage = serializer.deserialize(&serialized).unwrap();
+        assert_eq!(msg, deserialized);
+    }
+
+    #[test]
+    fn test_compression_reduces_size() {
+        let serializer_json = Serializer::new(EncodingFormat::Json);
+        let serializer_gzip = Serializer::new(EncodingFormat::Json)
+            .with_compression(CompressionFormat::Gzip);
+        let serializer_zstd = Serializer::new(EncodingFormat::Json)
+            .with_compression(CompressionFormat::Zstd);
+
+        let msg = TestMessage {
+            id: 1,
+            name: "repeated data for compression".to_string(),
+            data: vec![42; 10000],
+        };
+
+        let json_size = serializer_json.serialize(&msg).unwrap().len();
+        let gzip_size = serializer_gzip.serialize(&msg).unwrap().len();
+        let zstd_size = serializer_zstd.serialize(&msg).unwrap().len();
+
+        assert!(gzip_size < json_size, "Gzip should compress better than raw JSON");
+        assert!(zstd_size < json_size, "Zstd should compress better than raw JSON");
+    }
+
+    #[test]
+    fn test_compression_level() {
+        let serializer = Serializer::new(EncodingFormat::Json)
+            .with_compression(CompressionFormat::Zstd)
+            .with_compression_level(1);
+
+        assert_eq!(serializer.compression_level(), 1);
+
+        let msg = TestMessage {
+            id: 1,
+            name: "test".to_string(),
+            data: vec![1, 2, 3],
+        };
+
+        let serialized = serializer.serialize(&msg).unwrap();
+        let deserialized: TestMessage = serializer.deserialize(&serialized).unwrap();
+        assert_eq!(msg, deserialized);
+    }
+
+    #[test]
+    fn test_compression_format_accessors() {
+        let serializer = Serializer::new(EncodingFormat::Json)
+            .with_compression(CompressionFormat::Gzip);
+
+        assert_eq!(serializer.compression(), CompressionFormat::Gzip);
+        assert_eq!(serializer.format(), EncodingFormat::Json);
+    }
+
+    #[test]
+    fn test_compression_format_names() {
+        assert_eq!(CompressionFormat::None.name(), "None");
+        assert_eq!(CompressionFormat::Gzip.name(), "Gzip");
+        assert_eq!(CompressionFormat::Zstd.name(), "Zstd");
+    }
+
+    #[test]
+    fn test_compression_format_from_u32() {
+        assert_eq!(CompressionFormat::from_u32(0), Some(CompressionFormat::None));
+        assert_eq!(CompressionFormat::from_u32(1), Some(CompressionFormat::Gzip));
+        assert_eq!(CompressionFormat::from_u32(2), Some(CompressionFormat::Zstd));
+        assert_eq!(CompressionFormat::from_u32(3), None);
+    }
 }
