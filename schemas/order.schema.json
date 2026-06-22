@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gautamkumaroffical.github.io/zeroeye/schemas/order.schema.json",
+  "title": "Order",
+  "description": "Order record used by the market engine and order book.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "client_order_id",
+    "symbol",
+    "side",
+    "type",
+    "status",
+    "price",
+    "quantity",
+    "filled_quantity",
+    "remaining_quantity",
+    "leaves_quantity",
+    "cumulative_quote_quantity",
+    "avg_price",
+    "time_in_force",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique exchange-side order identifier.",
+      "minLength": 1
+    },
+    "client_order_id": {
+      "type": "string",
+      "description": "Client-provided order identifier used for idempotency and reconciliation.",
+      "minLength": 1
+    },
+    "symbol": {
+      "type": "string",
+      "description": "Trading pair or instrument symbol.",
+      "pattern": "^[A-Z0-9][A-Z0-9_./:-]{1,31}$"
+    },
+    "side": {
+      "type": "string",
+      "description": "Order side.",
+      "enum": ["buy", "sell"]
+    },
+    "type": {
+      "type": "string",
+      "description": "Order execution type.",
+      "enum": [
+        "limit",
+        "market",
+        "stop_limit",
+        "stop_market",
+        "trailing_stop",
+        "iceberg"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "description": "Current order lifecycle status.",
+      "enum": [
+        "new",
+        "partially_filled",
+        "filled",
+        "cancelled",
+        "rejected",
+        "expired"
+      ]
+    },
+    "price": {
+      "$ref": "#/$defs/nonNegativeDecimal",
+      "description": "Limit or execution price. Market orders use 0 when no limit price applies."
+    },
+    "stop_price": {
+      "$ref": "#/$defs/nonNegativeDecimal",
+      "description": "Optional trigger price for stop and trailing orders."
+    },
+    "quantity": {
+      "$ref": "#/$defs/positiveDecimal",
+      "description": "Original requested base asset quantity."
+    },
+    "filled_quantity": {
+      "$ref": "#/$defs/nonNegativeDecimal",
+      "description": "Base asset quantity already filled."
+    },
+    "remaining_quantity": {
+      "$ref": "#/$defs/nonNegativeDecimal",
+      "description": "Base asset quantity not yet filled or cancelled."
+    },
+    "leaves_quantity": {
+      "$ref": "#/$defs/nonNegativeDecimal",
+      "description": "Quantity still live in the matching engine."
+    },
+    "cumulative_quote_quantity": {
+      "$ref": "#/$defs/nonNegativeDecimal",
+      "description": "Total quote asset notional filled by this order."
+    },
+    "avg_price": {
+      "$ref": "#/$defs/nonNegativeDecimal",
+      "description": "Weighted average fill price, or 0 before the first fill."
+    },
+    "time_in_force": {
+      "type": "string",
+      "description": "Time-in-force policy.",
+      "enum": ["gtc", "ioc", "fok", "gtd"]
+    },
+    "created_at": {
+      "$ref": "#/$defs/timestamp",
+      "description": "RFC 3339 timestamp for order creation."
+    },
+    "updated_at": {
+      "$ref": "#/$defs/timestamp",
+      "description": "RFC 3339 timestamp for the latest order update."
+    },
+    "expire_at": {
+      "$ref": "#/$defs/timestamp",
+      "description": "Optional expiry timestamp for GTD orders."
+    },
+    "iceberg_quantity": {
+      "$ref": "#/$defs/positiveDecimal",
+      "description": "Optional total iceberg reserve quantity."
+    },
+    "display_quantity": {
+      "$ref": "#/$defs/positiveDecimal",
+      "description": "Optional displayed slice quantity for iceberg orders."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "type": { "const": "market" } },
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "price": { "$ref": "#/$defs/nonNegativeDecimal" }
+        }
+      },
+      "else": {
+        "properties": {
+          "price": { "$ref": "#/$defs/positiveDecimal" }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "time_in_force": { "const": "gtd" } },
+        "required": ["time_in_force"]
+      },
+      "then": {
+        "required": ["expire_at"]
+      }
+    },
+    {
+      "if": {
+        "properties": { "type": { "const": "iceberg" } },
+        "required": ["type"]
+      },
+      "then": {
+        "required": ["iceberg_quantity", "display_quantity"]
+      }
+    }
+  ],
+  "$defs": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nonNegativeDecimal": {
+      "oneOf": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$"
+        }
+      ]
+    },
+    "positiveDecimal": {
+      "oneOf": [
+        {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^(0*[1-9][0-9]*|[0-9]*\\.[0-9]*[1-9][0-9]*)$"
+        }
+      ]
+    }
+  }
+}
