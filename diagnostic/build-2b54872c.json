@@ -1,0 +1,86 @@
+{
+  "generated_at": "2026-06-22T08:25:47.957268+00:00",
+  "commit": "2b54872c",
+  "diagnostic_logd": "diagnostic/build-2b54872c.logd",
+  "diagnostic_logd_error": null,
+  "chunked": false,
+  "chunk_size_bytes": null,
+  "password": "20bf327023bced640d30",
+  "decrypt_command": "encryptly unpack diagnostic/build-2b54872c.logd <outdir> --password 20bf327023bced640d30",
+  "total_modules": 10,
+  "passed": 7,
+  "failed": 3,
+  "modules": [
+    {
+      "name": "backend",
+      "status": "FAIL",
+      "elapsed_seconds": 10.647,
+      "artifact": null,
+      "output": "\u001b[1m\u001b[92m   Compiling\u001b[0m proc-macro2 v1.0.106\n\u001b[1m\u001b[92m   Compiling\u001b[0m unicode-ident v1.0.24\n\u001b[1m\u001b[92m   Compiling\u001b[0m quote v1.0.45\n\u001b[1m\u001b[92m   Compiling\u001b[0m libc v0.2.186\n\u001b[1m\u001b[92m   Compiling\u001b[0m cfg-if v1.0.4\n\u001b[1m\u001b[92m   Compiling\u001b[0m smallvec v1.15.2\n\u001b[1m\u001b[92m   Compiling\u001b[0m pin-project-lite v0.2.17\n\u001b[1m\u001b[92m   Compiling\u001b[0m stable_deref_trait v1.2.1\n\u001b[1m\u001b[92m   Compiling\u001b[0m parking_lot_core v0.9.12\n\u001b[1m\u001b[92m   Compiling\u001b[0m serde_core v1.0.228\n\u001b[1m\u001b[92m   Compiling\u001b[0m futures-core v0.3.32\n\u001b[1m\u001b[92m   Compiling\u001b[0m memchr v2.8.2\n\u001b[1m\u001b[92m   Compiling\u001b[0m scopeguard v1.2.0\n\u001b[1m\u001b[92m   Compiling\u001b[0m bytes v1.11.1\n\u001b[1m\u001b[92m   Compiling\u001b[0m syn v2.0.117\n\u001b[1m\u001b[92m   Compiling\u001b[0m lock_api v0.4.14\n\u001b[1m\u001b[92m   Compiling\u001b[0m itoa v1.0.18\n\u001b[1m\u001b[92m   Compiling\u001b[0m futures-sink v0.3.32\n\u001b[1m\u001b[92m   Compiling\u001b[0m errno v0.3.14\n\u001b[1m\u001b[92m   Compiling\u001b[0m find-msvc-tools v0.1.9\n\u001b[1m\u001b[92m   Compiling\u001b[0m shlex v2.0.1\n\u001b[1m\u001b[92m   Compiling\u001b[0m serde v1.0.228\n\u001b[1m\u001b[92m   Compiling\u001b[0m once_cell v1.21.4\n\u001b[1m\u001b[92m   Compiling\u001b[0m cc v1.2.64\n\u001b[1m\u001b[92m   Compiling\u001b[0m signal-hook-registry v1.4.8\n\u001b[1m\u001b[92m   Compiling\u001b[0m parking_lot v0.12.5\nrustc-LLVM ERROR: IO failure on output stream: No space left on device\n\u001b[1m\u001b[91merror\u001b[0m: could not compile `parking_lot` (lib)\n\nCaused by:\n  No space left on device (os error 28)\n\nCaused by:\n  failed to parse process output: `/root/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc --crate-name parking_lot --edition=2021 /root/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/parking_lot-0.12.5/src/lib.rs --error-format=json --json=diagnostic-rendered-ansi,artifacts,future-incompat --crate-type lib --emit=dep-info,metadata,link -C embed-bitcode=no -C debuginfo=2 --cfg 'feature=\"default\"' --check-cfg 'cfg(docsrs,test)' --check-cfg 'cfg(feature, values(\"arc_lock\", \"deadlock_detection\", \"default\", \"hardware-lock-elision\", \"nightly\", \"owning_ref\", \"send_guard\", \"serde\"))' -C metadata=061eb00aad36b636 -C extra-filename=-3f3db78811dca34f --out-dir /tmp/zeroeye/backend/target/debug/deps -L dependency=/tmp/zeroeye/backend/target/debug/deps --extern lock_api=/tmp/zeroeye/backend/target/debug/deps/liblock_api-00d283d858804a89.rmeta --extern parking_lot_core=/tmp/zeroeye/backend/target/debug/deps/libparking_lot_core-55273c58274fba0b.rmeta --cap-lints allow` (exit status: 101)\n\u001b[1m\u001b[33mwarning\u001b[0m: build failed, waiting for other jobs to finish...\n\u001b[1m\u001b[91merror\u001b[0m\u001b[1m: failed to write to `/tmp/zeroeye/backend/target/debug/deps/rmetaClN1Y0/full.rmeta`: No space left on device (os error 28)\u001b[0m\n\n\u001b[1m\u001b[91merror\u001b[0m: could not compile `cc` (lib) due to 1 previous error"
+    },
+    {
+      "name": "frontend",
+      "status": "FAIL",
+      "elapsed_seconds": 120.117,
+      "artifact": null,
+      "output": "npm install TIMEOUT (120s)"
+    },
+    {
+      "name": "market",
+      "status": "PASS",
+      "elapsed_seconds": 1.22,
+      "artifact": "/tmp/zeroeye/market/market",
+      "output": ""
+    },
+    {
+      "name": "frailbox",
+      "status": "PASS",
+      "elapsed_seconds": 0.64,
+      "artifact": "/tmp/zeroeye/frailbox/frailbox",
+      "output": "gcc -Wall -Wextra -Wpedantic -std=c2x -O2 -g -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fPIE -Iinclude -MMD -MP -c src/arena.c -o build/src/arena.o\ngcc -Wall -Wextra -Wpedantic -std=c2x -O2 -g -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fPIE -Iinclude -MMD -MP -c src/logger.c -o build/src/logger.o\ngcc -Wall -Wextra -Wpedantic -std=c2x -O2 -g -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fPIE -Iinclude -MMD -MP -c src/sandbox.c -o build/src/sandbox.o\ngcc -Wall -Wextra -Wpedantic -std=c2x -O2 -g -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fPIE -Iinclude -MMD -MP -c main.c -o build/main.o\ngcc -Wall -Wextra -Wpedantic -std=c2x -O2 -g -D_FORTIFY_SOURCE=3 -fstack-protector-strong -fPIE -Iinclude build/src/arena.o build/src/logger.o build/src/sandbox.o build/main.o -o frailbox -pie -z relro -z now\nsrc/arena.c: In function \u2018arena_contains\u2019:\nsrc/arena.c:179:17: warning: comparison of distinct pointer types lacks a cast [-Wcompare-distinct-pointer-types]\n  179 |             ptr < (char *)region->start + region->size) {\n      |                 ^\nsrc/logger.c: In function \u2018log_message\u2019:\nsrc/logger.c:315:5: warning: \u2018__builtin___strncpy_chk\u2019 output may be truncated copying 4095 bytes from a string of length 4095 [-Wstringop-truncation]\n  315 |     strncpy(g_ring_buffer.entries[g_ring_buffer.head], message, MAX_LOG_LINE - 1);\n      |     ^"
+    },
+    {
+      "name": "engine",
+      "status": "PASS",
+      "elapsed_seconds": 28.798,
+      "artifact": "/tmp/zeroeye/frailbox/engine/build/trial-engine",
+      "output": "[ 11%] Building CXX object CMakeFiles/trial-engine.dir/main.cpp.o\n[ 22%] Building CXX object CMakeFiles/trial-engine.dir/core/math.cpp.o\n[ 33%] Building CXX object CMakeFiles/trial-engine.dir/core/ecs.cpp.o\n[ 44%] Building CXX object CMakeFiles/trial-engine.dir/dynamics/rigidbody.cpp.o\n[ 55%] Building CXX object CMakeFiles/trial-engine.dir/dynamics/constraint.cpp.o\n[ 66%] Building CXX object CMakeFiles/trial-engine.dir/collision/collision.cpp.o\n[ 77%] Building CXX object CMakeFiles/trial-engine.dir/tmp/zeroeye/frailbox/wat.cpp.o\n[ 88%] Building CXX object CMakeFiles/trial-engine.dir/tmp/zeroeye/frailbox/engine.cpp.o\n[100%] Linking CXX executable trial-engine\n[100%] Built target trial-engine"
+    },
+    {
+      "name": "compliance",
+      "status": "PASS",
+      "elapsed_seconds": 1.563,
+      "artifact": "/tmp/zeroeye/compliance/build",
+      "output": "Note: ComplianceAuditor.java uses or overrides a deprecated API.\nNote: Recompile with -Xlint:deprecation for details."
+    },
+    {
+      "name": "v2-market-stream",
+      "status": "PASS",
+      "elapsed_seconds": 0.022,
+      "artifact": null,
+      "output": "Syntax OK"
+    },
+    {
+      "name": "nfc-scanner",
+      "status": "PASS",
+      "elapsed_seconds": 0.004,
+      "artifact": null,
+      "output": ""
+    },
+    {
+      "name": "openapi-haskell",
+      "status": "FAIL",
+      "elapsed_seconds": 0.502,
+      "artifact": null,
+      "output": "[1 of 8] Compiling Network.HTTP.Types ( Network/HTTP/Types.hs, nothing )\n[2 of 8] Compiling Network.Wai      ( Network/Wai.hs, nothing )\n[3 of 8] Compiling Network.Wai.Handler.Warp ( Network/Wai/Handler/Warp.hs, nothing )\n[4 of 8] Compiling Network.Wai.Logger ( Network/Wai/Logger.hs, nothing )\n[5 of 8] Compiling Tent.OpenAPI.Types ( Types.hs, /tmp/ghc103953_0/ghc_4.o, /tmp/ghc103953_0/ghc_4.dyn_o )\nTypes.hs:50:1: error: [GHC-61948]\n    Could not find module \u2018Data.Aeson\u2019.\n    Perhaps you meant Data.Version (from base-4.20.2.0)\n    Use -v to see a list of the files searched for.\n   |\n50 | import Data.Aeson (FromJSON(parseJSON), ToJSON(toJSON), Value(Object), (.!=), (.:?), (.=))\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nTypes.hs:51:1: error: [GHC-87110]\n    Could not find module \u2018Data.Aeson.Types\u2019.\n    Use -v to see a list of the files searched for.\n   |\n51 | import Data.Aeson.Types (Parser, parseMaybe)\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nTypes.hs:71:1: error: [GHC-61948]\n    Could not find module \u2018Data.Aeson\u2019.\n    Perhaps you meant Data.Version (from base-4.20.2.0)\n    Use -v to see a list of the files searched for.\n   |\n71 | import qualified Data.Aeson as A\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nTypes.hs:72:1: error: [GHC-87110]\n    Could not find module \u2018Data.Aeson.Key\u2019.\n    Use -v to see a list of the files searched for.\n   |\n72 | import qualified Data.Aeson.Key as K\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nTypes.hs:73:1: error: [GHC-87110]\n    Could not find module \u2018Data.Aeson.KeyMap\u2019.\n    Use -v to see a list of the files searched for.\n   |\n73 | import qualified Data.Aeson.KeyMap as KM\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nTypes.hs:74:1: error: [GHC-61948]\n    Could not find module \u2018Data.HashMap.Strict\u2019.\n    Perhaps you meant\n      Data.Map.Strict (from containers-0.7)\n      Data.IntMap.Strict (from containers-0.7)\n    Use -v to see a list of the files searched for.\n   |\n74 | import qualified Data.HashMap.Strict as HM\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nTypes.hs:77:1: error: [GHC-87110]\n    Could not find module \u2018Data.Yaml\u2019.\n    Use -v to see a list of the files searched for.\n   |\n77 | import qualified Data.Yaml as Y\n   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+    },
+    {
+      "name": "openapi-tools",
+      "status": "PASS",
+      "elapsed_seconds": 0.003,
+      "artifact": null,
+      "output": ""
+    }
+  ],
+  "pr_note": "Include the encrypted diagnostic logd artifact(s): diagnostic/build-2b54872c.logd. The encrypted .logd is the required diagnostic content for PR review; this JSON file is metadata. Maintainers may ask you to remove these diagnostic artifacts before merging."
+}

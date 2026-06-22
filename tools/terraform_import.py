@@ -95,6 +95,38 @@ SUPPORTED_RESOURCE_TYPES = [
 REQUIRED_TERRAFORM_VERSION = ">= 1.0.0"
 
 # ---------------------------------------------------------------------------
+# VALIDATION
+# ---------------------------------------------------------------------------
+
+TERRAFORM_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_-]*$")
+
+
+def validate_resource_name(resource_type: str, resource_name: str) -> None:
+    """Validate a Terraform resource name before import.
+
+    Raises ValueError with a clear message when the name is invalid.
+    Hyphens are explicitly rejected because they corrupt Terraform state
+    when used with this import tool (see module docstring).
+    """
+    if not resource_name:
+        raise ValueError(
+            f"Resource name for {resource_type} is empty"
+        )
+
+    if not TERRAFORM_IDENTIFIER_RE.match(resource_name):
+        raise ValueError(
+            f"Resource name '{resource_name}' for {resource_type} contains "
+            f"invalid characters; names must match [a-zA-Z_][a-zA-Z0-9_-]*"
+        )
+
+    if "-" in resource_name:
+        raise ValueError(
+            f"Resource name '{resource_name}' for {resource_type} contains "
+            f"hyphens; hyphens corrupt Terraform state — use underscores instead"
+        )
+
+
+# ---------------------------------------------------------------------------
 # DATA MODELS
 # ---------------------------------------------------------------------------
 
@@ -142,6 +174,8 @@ class TerraformImporter:
             return False
 
     def import_resource(self, resource: ResourceToImport) -> bool:
+        validate_resource_name(resource.resource_type, resource.resource_name)
+
         address = f"{resource.resource_type}.{resource.resource_name}"
         cmd = [
             self.terraform_binary, "import",
@@ -208,6 +242,7 @@ class TerraformImporter:
         if dry_run:
             logger.info("DRY RUN - No resources will be imported")
             for resource in resources:
+                validate_resource_name(resource.resource_type, resource.resource_name)
                 address = f"{resource.resource_type}.{resource.resource_name}"
                 logger.info(f"  Would import: {address} (ID: {resource.resource_id})")
                 import_result.results.append({
@@ -262,6 +297,7 @@ class TerraformImporter:
         lines = ["#!/bin/bash", "# Auto-generated Terraform import script", f"# Generated: {datetime.now().isoformat()}", ""]
 
         for resource in resources:
+            validate_resource_name(resource.resource_type, resource.resource_name)
             address = f"{resource.resource_type}.{resource.resource_name}"
             lines.append(
                 f"terraform import -state={resource.state_file} {address} {resource.resource_id}"
@@ -505,6 +541,13 @@ def main():
         if not resources_to_import:
             logger.error("No resources found in CSV file")
             return 1
+
+        for resource in resources_to_import:
+            try:
+                validate_resource_name(resource.resource_type, resource.resource_name)
+            except ValueError as exc:
+                logger.error(str(exc))
+                return 1
 
         logger.info(f"Loaded {len(resources_to_import)} resources from {args.csv}")
 
