@@ -1,0 +1,9 @@
+{
+  "id": "ord-1002",
+  "type": "stop_limit",
+  "side": "sell",
+  "quantity": 5,
+  "price": 39.0,
+  "stop_price": 40.0,
+  "timestamp": 1710000100
+}
