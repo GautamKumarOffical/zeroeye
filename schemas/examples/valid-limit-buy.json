@@ -1,0 +1,9 @@
+{
+  "id": "ord-1001",
+  "type": "limit",
+  "side": "buy",
+  "quantity": 10,
+  "price": 42.5,
+  "timestamp": 1710000000,
+  "time_in_force": "GTC"
+}

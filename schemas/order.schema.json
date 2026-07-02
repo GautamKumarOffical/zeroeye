@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zeroeye.local/schemas/order.schema.json",
+  "title": "Order",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "side",
+    "quantity",
+    "price",
+    "timestamp"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "limit",
+        "market",
+        "stop",
+        "stop_limit"
+      ]
+    },
+    "side": {
+      "type": "string",
+      "enum": [
+        "buy",
+        "sell"
+      ]
+    },
+    "quantity": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "price": {
+      "type": "number",
+      "minimum": 0
+    },
+    "stop_price": {
+      "type": "number",
+      "minimum": 0
+    },
+    "timestamp": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "time_in_force": {
+      "type": "string",
+      "enum": [
+        "GTC",
+        "IOC",
+        "FOK"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "stop_limit"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "stop_price"
+        ]
+      }
+    }
+  ]
+}
