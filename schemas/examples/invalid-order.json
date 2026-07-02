@@ -1,0 +1,18 @@
+{
+  "id": "",
+  "client_order_id": "",
+  "symbol": "BTC-USD",
+  "side": "buy",
+  "type": "limit",
+  "status": "new",
+  "price": -1,
+  "quantity": 0,
+  "filled_quantity": 0,
+  "remaining_quantity": 0,
+  "leaves_quantity": 0,
+  "cumulative_quote_quantity": 0,
+  "avg_price": 0,
+  "time_in_force": "gtc",
+  "created_at": -1,
+  "updated_at": -1
+}

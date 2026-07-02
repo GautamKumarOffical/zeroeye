@@ -1,0 +1,18 @@
+{
+  "id": "ord-1001",
+  "client_order_id": "cli-1001",
+  "symbol": "BTC-USD",
+  "side": "buy",
+  "type": "limit",
+  "status": "new",
+  "price": 42000.5,
+  "quantity": 0.25,
+  "filled_quantity": 0,
+  "remaining_quantity": 0.25,
+  "leaves_quantity": 0.25,
+  "cumulative_quote_quantity": 0,
+  "avg_price": 0,
+  "time_in_force": "gtc",
+  "created_at": 1710000000,
+  "updated_at": 1710000000
+}
