@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zeroeye.local/schemas/order.schema.json",
+  "title": "Order",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "client_order_id",
+    "symbol",
+    "side",
+    "type",
+    "status",
+    "price",
+    "quantity",
+    "filled_quantity",
+    "remaining_quantity",
+    "leaves_quantity",
+    "cumulative_quote_quantity",
+    "avg_price",
+    "time_in_force",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Exchange order id"
+    },
+    "client_order_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "symbol": {
+      "type": "string",
+      "minLength": 1
+    },
+    "side": {
+      "type": "string",
+      "enum": [
+        "buy",
+        "sell"
+      ]
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "limit",
+        "market",
+        "stop_limit",
+        "stop_market",
+        "trailing_stop",
+        "iceberg"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "partially_filled",
+        "filled",
+        "cancelled",
+        "rejected",
+        "expired"
+      ]
+    },
+    "price": {
+      "type": "number",
+      "minimum": 0
+    },
+    "quantity": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "filled_quantity": {
+      "type": "number",
+      "minimum": 0
+    },
+    "remaining_quantity": {
+      "type": "number",
+      "minimum": 0
+    },
+    "leaves_quantity": {
+      "type": "number",
+      "minimum": 0
+    },
+    "cumulative_quote_quantity": {
+      "type": "number",
+      "minimum": 0
+    },
+    "avg_price": {
+      "type": "number",
+      "minimum": 0
+    },
+    "time_in_force": {
+      "type": "string",
+      "enum": [
+        "gtc",
+        "ioc",
+        "fok",
+        "gtd"
+      ]
+    },
+    "created_at": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "updated_at": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "stop_price": {
+      "type": "number",
+      "minimum": 0
+    },
+    "expire_at": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "iceberg_quantity": {
+      "type": "number",
+      "minimum": 0
+    },
+    "display_quantity": {
+      "type": "number",
+      "minimum": 0
+    }
+  }
+}

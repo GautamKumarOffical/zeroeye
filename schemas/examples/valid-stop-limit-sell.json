@@ -1,0 +1,19 @@
+{
+  "id": "ord-1002",
+  "client_order_id": "cli-1002",
+  "symbol": "ETH-USD",
+  "side": "sell",
+  "type": "stop_limit",
+  "status": "new",
+  "price": 3200,
+  "quantity": 1.5,
+  "filled_quantity": 0,
+  "remaining_quantity": 1.5,
+  "leaves_quantity": 1.5,
+  "cumulative_quote_quantity": 0,
+  "avg_price": 0,
+  "time_in_force": "gtc",
+  "created_at": 1710000100,
+  "updated_at": 1710000100,
+  "stop_price": 3250
+}
